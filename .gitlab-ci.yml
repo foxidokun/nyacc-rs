@@ -1,0 +1,32 @@
+stages:
+  - build
+  - test
+
+build:
+  stage: build
+  image: rust
+  script:
+    - cargo build
+  cache:
+    paths:
+      - target
+
+runtest:
+  stage: test
+  image: rust
+  cache:
+    paths:
+      - target
+  script:
+    - cargo test
+
+codestyle:
+  stage: test
+  image: rust
+  cache:
+    paths:
+      - target
+      - ~/.rustup
+  script:
+    - rustup component add rustfmt
+    - cargo fmt --check
