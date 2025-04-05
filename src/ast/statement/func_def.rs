@@ -5,16 +5,17 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct FuncDef {
-    name: String,
-    args: Vec<TypedArg>,
+    pub name: String,
+    pub args: Vec<TypedArg>,
+    pub rettype: String,
 }
 
 impl Statement for FuncDef {}
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::TypedArg;
     use crate::ast::macros::{ast_node, check_ast};
-    use crate::ast::{Comparator, OpType, TypedArg};
     use crate::utils::nodes::*;
 
     #[test]
@@ -28,7 +29,8 @@ mod tests {
                 vec![
                     TypedArg::new("a".into(), "type1".into()),
                     TypedArg::new("b".into(), "type2".into()),
-                ]
+                ],
+                "void".into()
             )
         );
     }
@@ -38,7 +40,16 @@ mod tests {
         check_ast!(
             ProgramBlockParser,
             "fn foo();",
-            ast_node!(FuncDef, "foo".into(), vec![])
+            ast_node!(FuncDef, "foo".into(), vec![], "void".into())
+        );
+    }
+
+    #[test]
+    fn nonvoid_ret() {
+        check_ast!(
+            ProgramBlockParser,
+            "fn foo() -> S;",
+            ast_node!(FuncDef, "foo".into(), vec![], "S".into())
         );
     }
 }

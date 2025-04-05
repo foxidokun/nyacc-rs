@@ -12,7 +12,7 @@ impl Expression for Float {}
 
 #[derive(new, Acceptor, Debug)]
 pub struct Int {
-    val: i64,
+    val: u64,
 }
 
 impl Expression for Int {}

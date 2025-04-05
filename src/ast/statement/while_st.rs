@@ -16,7 +16,7 @@ impl Statement for While {}
 #[cfg(test)]
 mod tests {
     use crate::ast::macros::{ast_node, check_ast};
-    use crate::ast::{Comparator, OpType, TypedArg};
+    use crate::ast::{Comparator, OpType};
     use crate::utils::nodes::*;
 
     #[test]

@@ -8,10 +8,10 @@ pub trait Expression: Acceptor + Debug {}
 
 pub trait Statement: Acceptor + Debug {}
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub struct TypedArg {
-    name: String,
-    tp: String,
+    pub name: String,
+    pub tp: String,
 }
 
 impl TypedArg {

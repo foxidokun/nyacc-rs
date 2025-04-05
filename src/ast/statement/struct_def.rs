@@ -5,8 +5,8 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct StructDef {
-    name: String,
-    fields: Vec<TypedArg>,
+    pub name: String,
+    pub fields: Vec<TypedArg>,
 }
 
 impl Statement for StructDef {}
