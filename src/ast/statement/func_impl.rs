@@ -5,8 +5,9 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct FuncImpl {
-    name: String,
-    args: Vec<TypedArg>,
+    pub name: String,
+    pub args: Vec<TypedArg>,
+    pub rettype: String,
     body: Vec<Box<dyn Statement>>,
 }
 
@@ -14,8 +15,8 @@ impl Statement for FuncImpl {}
 
 #[cfg(test)]
 mod tests {
+    use crate::ast::TypedArg;
     use crate::ast::macros::{ast_node, check_ast};
-    use crate::ast::{Comparator, OpType, TypedArg};
     use crate::utils::nodes::*;
 
     #[test]
@@ -30,6 +31,7 @@ mod tests {
                     TypedArg::new("a".into(), "type1".into()),
                     TypedArg::new("b".into(), "type2".into()),
                 ],
+                "void".into(),
                 vec![ast_node!(
                     ExprStatement,
                     ast_node!(Variable, "a".into(), vec![])
@@ -43,7 +45,16 @@ mod tests {
         check_ast!(
             ProgramBlockParser,
             "fn foo() {}",
-            ast_node!(FuncImpl, "foo".into(), vec![], vec![])
+            ast_node!(FuncImpl, "foo".into(), vec![], "void".into(), vec![])
+        );
+    }
+
+    #[test]
+    fn nonvoid_ret() {
+        check_ast!(
+            ProgramBlockParser,
+            "fn foo() -> S {}",
+            ast_node!(FuncImpl, "foo".into(), vec![], "S".into(), vec![])
         );
     }
 }

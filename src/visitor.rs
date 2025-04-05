@@ -24,5 +24,5 @@ pub trait Visitor {
 }
 
 pub trait Acceptor {
-    fn accept(&self, visitor: &mut dyn Visitor);
+    fn accept(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()>;
 }

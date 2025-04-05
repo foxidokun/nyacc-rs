@@ -5,5 +5,5 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct Program {
-    blocks: Vec<Box<dyn Statement>>,
+    pub blocks: Vec<Box<dyn Statement>>,
 }

@@ -1,0 +1,8 @@
+struct S {
+    a: i8,
+    b: i16
+}
+
+fn main(a: i8, b: S) -> S {
+
+}

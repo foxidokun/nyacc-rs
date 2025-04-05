@@ -12,8 +12,9 @@ pub fn derive_acceptor(input: TokenStream) -> TokenStream {
 
     quote! {
         impl Acceptor for #name {
-            fn accept(&self, visitor: &mut dyn Visitor) {
-                visitor.#func(self);
+            fn accept(&self, visitor: &mut dyn Visitor) -> anyhow::Result<()> {
+                visitor.#func(self)?;
+                Ok(())
             }
         }
     }
@@ -26,8 +27,9 @@ pub fn acceptor_func(input: TokenStream) -> TokenStream {
     let func = format_ident!("visit_{}", transform_name(name.to_string()));
 
     quote! {
-        fn #func (&mut self, node: &#name) {
+        fn #func (&mut self, node: &#name) -> anyhow::Result<()> {
             // Do nothing by default
+            Ok(())
         }
     }
     .into()
