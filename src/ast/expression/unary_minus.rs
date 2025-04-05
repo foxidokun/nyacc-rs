@@ -13,8 +13,8 @@ impl Expression for UnaryMinus {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::ast::OpType;
     use crate::ast::macros::{ast_node, check_ast};
-    use crate::ast::{Comparator, OpType};
     use crate::utils::nodes::*;
 
     #[test]

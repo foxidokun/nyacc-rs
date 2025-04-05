@@ -16,7 +16,7 @@ pub Program: Program = <ProgramBlock*> => Program::new(<>);
 
 // — Identificator 
 pub ID: String = <s:r"[a-zA-Z_][a-zA-Z_0-9]*"> => s.to_owned();
-pub Int: i64 = <s:r"[0-9]+"> => i64::from_str(s).unwrap();
+pub Int: u64 = <s:r"[0-9]+"> => u64::from_str(s).unwrap();
 pub Float: f64 = <s:r"[0-9]+\.[0-9]*"> => f64::from_str(s).unwrap();
 
 pub Variable: Variable = <ID> <("." <ID>)*> => Variable::new(<>);
@@ -80,11 +80,21 @@ pub Comparator: Comparator = {
 };
 
 pub FuncDef: Box<dyn Statement> = {
-    "fn" <ID> "(" <NoComma<TypedArg>> ")" ";" => Box::new(FuncDef::new(<>))
+    "fn" <n: ID> "(" <args: NoComma<TypedArg>> ")" <r: ("->" <ID>)?> ";" => {
+    match r {
+        Some(v) => Box::new(FuncDef::new(n, args, v)),
+        None => Box::new(FuncDef::new(n, args, "void".into()))
+    }
+    }
 };
 
 pub FuncImpl: Box<dyn Statement> = {
-    "fn" <ID> "(" <NoComma<TypedArg>> ")" "{" <Statement*> "}" => Box::new(FuncImpl::new(<>))
+    "fn" <n: ID> "(" <args: NoComma<TypedArg>> ")" <r: ("->" <ID>)?> "{" <body:Statement*> "}" => {
+    match r {
+        Some(v) => Box::new(FuncImpl::new(n, args, v, body)),
+        None => Box::new(FuncImpl::new(n, args, "void".into(), body))
+    }
+    }
 };
 
 // === Helpers ===

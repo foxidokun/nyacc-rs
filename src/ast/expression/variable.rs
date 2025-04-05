@@ -15,8 +15,6 @@ impl Expression for Variable {}
 mod tests {
     use super::*;
     use crate::ast::macros::{ast_node, check_ast};
-    use crate::ast::{Comparator, OpType};
-    use crate::utils::nodes::*;
 
     #[test]
     fn simple() {
