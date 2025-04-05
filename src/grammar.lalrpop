@@ -1,0 +1,111 @@
+use std::str::FromStr;
+use crate::ast::{Expression, Statement, TypedArg, Comparator, OpType};
+use crate::utils::nodes::*;
+
+grammar;
+
+pub ProgramBlock: Box<dyn Statement> = {
+    StructDef => <>,
+    FuncDef => <>,
+    FuncImpl => <>
+};
+
+pub Program: Program = <ProgramBlock*> => Program::new(<>);
+
+// === Basic Blocks ===
+
+// — Identificator 
+pub ID: String = <s:r"[a-zA-Z_][a-zA-Z_0-9]*"> => s.to_owned();
+pub Int: i64 = <s:r"[0-9]+"> => i64::from_str(s).unwrap();
+pub Float: f64 = <s:r"[0-9]+\.[0-9]*"> => f64::from_str(s).unwrap();
+
+pub Variable: Variable = <ID> <("." <ID>)*> => Variable::new(<>);
+
+
+ExprReset = <Expr>;
+
+// Expression
+pub Expr: Box<dyn Expression> = {
+    #[precedence(level="0")]
+    Variable => Box::new(<>),
+    Int => Box::new(Int::new(<>)),
+    Float => Box::new(Float::new(<>)),
+    <name:ID> "(" <v:NoComma<ExprReset>> ")" => Box::new(FunctionCall::new(name, v)), // Function Call
+    "(" <ExprReset> ")" => <>,
+
+    #[precedence(level="1")]
+    "-" <Expr> => Box::new(UnaryMinus::new(<>)), // Unary Minus
+    "!" <Expr> => Box::new(Not::new(<>)), // Not
+
+    #[precedence(level="2")] #[assoc(side="left")]
+    <lhs:Expr> "*" <rhs:Expr> => Box::new(Arithmetic::new(lhs, OpType::Mul, rhs)),
+    <lhs:Expr> "/" <rhs:Expr> => Box::new(Arithmetic::new(lhs, OpType::Div, rhs)),
+
+    #[precedence(level="3")] #[assoc(side="left")]
+    <lhs:Expr> "+" <rhs:Expr> => Box::new(Arithmetic::new(lhs, OpType::Add, rhs)),
+    <lhs:Expr> "-" <rhs:Expr> => Box::new(Arithmetic::new(lhs, OpType::Sub, rhs)),
+
+    #[precedence(level="4")] #[assoc(side="left")] // Compare
+    Expr Comparator Expr => Box::new(Compare::new(<>)),
+};
+
+NonEndedStatement: Box<dyn Statement> = {
+    <Variable> "=" <Expr> => Box::new(Assignment::new(<>)),
+    "let" <ID> <(":" <ID>)?> "=" <Expr> => Box::new(Let::new(<>))
+};
+
+pub Statement: Box<dyn Statement> = {
+    <NonEndedStatement> ";" => <>,
+    "while" "(" <Expr> ")" "{" <Statement*> "}" => Box::new(While::new(<>)),
+    "for" "(" <NonEndedStatement> ";" <Expr> ";" <NonEndedStatement> ")" "{" <Statement*> "}" => Box::new(For::new(<>)),
+    "if" "(" <Expr> ")" "{" <Statement*> "}" <("else" "{" <Statement*> "}")?> => Box::new(If::new(<>)),
+    <Expr> ";" => Box::new(ExprStatement::new(<>))
+};
+
+pub StructDef: Box<dyn Statement> = {
+    "struct" <ID> "{" <OptionalComma<TypedArg>> "}" => Box::new(StructDef::new(<>))
+};
+
+pub TypedArg: TypedArg = {
+    <n:ID> ":" <t:ID> => TypedArg::new(n, t)
+};
+
+pub Comparator: Comparator = {
+    ">=" => Comparator::GE,
+    "<=" => Comparator::LE,
+    ">" => Comparator::GT,
+    "<" => Comparator::LT,
+    "==" => Comparator::EQ,
+    "!=" => Comparator::NE,
+};
+
+pub FuncDef: Box<dyn Statement> = {
+    "fn" <ID> "(" <NoComma<TypedArg>> ")" ";" => Box::new(FuncDef::new(<>))
+};
+
+pub FuncImpl: Box<dyn Statement> = {
+    "fn" <ID> "(" <NoComma<TypedArg>> ")" "{" <Statement*> "}" => Box::new(FuncImpl::new(<>))
+};
+
+// === Helpers ===
+
+// (T,)*,?
+OptionalComma<T>: Vec<T> = {
+    <mut v:(<T> ",")*> <e:T?> => match e {
+        None => v,
+        Some(e) => {
+            v.push(e);
+            v
+        }
+    }
+};
+
+// TODO: rewrite for better checking
+// Right now it allows ,a,b,c,d
+NoComma<T>: Vec<T> = <e:T?> <mut v:("," <T>)*> => match e {
+    None => v,
+    Some(e) => {
+        v.insert(0, e);
+        v
+    }
+};
