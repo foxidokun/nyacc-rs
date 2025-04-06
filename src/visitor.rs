@@ -21,6 +21,7 @@ pub trait Visitor {
     acceptor_func!(UnaryMinus);
     acceptor_func!(Variable);
     acceptor_func!(ExprStatement);
+    acceptor_func!(StructCtor);
 }
 
 pub trait Acceptor {

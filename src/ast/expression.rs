@@ -18,3 +18,6 @@ pub use variable::Variable;
 
 mod constant;
 pub use constant::{Float, Int};
+
+mod struct_ctor;
+pub use struct_ctor::StructCtor;

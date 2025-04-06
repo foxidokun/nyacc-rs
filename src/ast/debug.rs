@@ -216,6 +216,13 @@ impl<T: Write> Visitor for ASTPrinter<'_, T> {
         print_body!(self, "Body", node.body);
         Ok(())
     }
+
+    fn visit_structctor(&mut self, node: &super::expression::StructCtor) -> anyhow::Result<()> {
+        self.shift()?;
+        writeln!(self.writer, "Struct Ctor of type {}", node.name)?;
+        print_body!(self, "Args", node.args);
+        Ok(())
+    }
 }
 
 pub fn print_ast<T: Write>(writer: &mut T, program: &Program) -> anyhow::Result<()> {

@@ -32,6 +32,7 @@ pub Expr: Box<dyn Expression> = {
     Float => Box::new(Float::new(<>)),
     <name:ID> "(" <v:NoComma<ExprReset>> ")" => Box::new(FunctionCall::new(name, v)), // Function Call
     "(" <ExprReset> ")" => <>,
+    <ID> "{" <NoComma<ExprReset>> "}" => Box::new(StructCtor::new(<>)),
 
     #[precedence(level="1")]
     "-" <Expr> => Box::new(UnaryMinus::new(<>)), // Unary Minus
