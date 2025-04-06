@@ -49,6 +49,7 @@ impl CustomType {
         /*
         let name = CString::new(self.name.clone()).unwrap();
         unsafe { LLVMGetTypeByName2(cxt.cxt, name.as_ptr()) }
+        // TODO: Add assert
         */
     }
 

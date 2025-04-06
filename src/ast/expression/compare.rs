@@ -16,20 +16,20 @@ impl Expression for Compare {
         &self,
         cxt: &mut crate::codegen::CodegenContext,
     ) -> anyhow::Result<crate::codegen::TypedValue> {
-        let lhs = self.lhs.codegen(cxt)?;
-        let rhs = self.rhs.codegen(cxt)?;
+        let lhs_tv = self.lhs.codegen(cxt)?;
+        let rhs_tv = self.rhs.codegen(cxt)?;
 
-        let common_type = Type::common_type(&lhs.ty, &rhs.ty)?;
+        let common_type = Type::common_type(&lhs_tv.ty, &rhs_tv.ty)?;
 
-        let lhs = cast(cxt, &lhs.ty, &common_type, lhs.value);
-        let rhs = cast(cxt, &rhs.ty, &common_type, rhs.value);
+        let lhs = cast(cxt, &lhs_tv.ty, &common_type, lhs_tv.value);
+        let rhs = cast(cxt, &rhs_tv.ty, &common_type, rhs_tv.value);
 
         macro_rules! dispatch_binop {
             ($([$op:tt, $float_pred:tt, $int_pred:tt ]),+) => {
                 match self.cmp {
                 $(
                     Comparator::$op => {
-                        match common_type.as_ref() {
+                        let res = match common_type.as_ref() {
                             Type::Int(_) => {
                                 unsafe {llvm_sys::core::LLVMBuildICmp(
                                     cxt.builder,
@@ -49,7 +49,9 @@ impl Expression for Compare {
                                 )}
                             },
                             _ => { panic!("This kind of errors should be catched during Type::common_type call") }
-                        }
+                        };
+                        assert!(!res.is_null(), "Failed to compare (cmp: {}) args types: {} {}", Comparator::$op, lhs_tv.ty, rhs_tv.ty);
+                        res
                     },
                 )+
                 }

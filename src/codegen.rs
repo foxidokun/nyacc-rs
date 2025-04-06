@@ -35,6 +35,7 @@ pub fn compile(prog: &Program, output: &Path) -> anyhow::Result<()> {
     }
 
     if !errors.is_null() {
+        // SAFETY: We trust in llvm
         let error = unsafe { CStr::from_ptr(errors) };
         anyhow::bail!(
             "Failed to dump LLVM IR with err {}",
@@ -68,7 +69,7 @@ pub fn cast(
         return val;
     }
 
-    match to {
+    let res = match to {
         Type::Float(to_fp) => match from {
             Type::Float(_) => unsafe {
                 LLVMBuildFPCast(cxt.builder, val, to_fp.llvm_type(cxt), ZERO_NAME)
@@ -100,5 +101,8 @@ pub fn cast(
             _ => panic!("Cast from incompatable type"),
         },
         _ => panic!("Cast to incompatable type"),
-    }
+    };
+
+    assert!(!res.is_null());
+    res
 }

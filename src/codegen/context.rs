@@ -87,6 +87,7 @@ impl CodegenContext {
             module = LLVMModuleCreateWithNameInContext(c"nyac".as_ptr() as *const _, context);
             builder = LLVMCreateBuilderInContext(context);
         }
+        assert!(!context.is_null() && !module.is_null() && !builder.is_null());
 
         // TODO: Populate types
         let cxt = Self {
@@ -125,11 +126,13 @@ impl CodegenContext {
                     false as i32,
                 )
             };
+            assert!(!llvm_func_type.is_null());
 
             let func_name_c = CString::new(funcname.clone()).unwrap();
 
             // Maybe save function into cxt here (?)
-            unsafe { LLVMAddFunction(cxt.module, func_name_c.as_ptr(), llvm_func_type) };
+            let func = unsafe { LLVMAddFunction(cxt.module, func_name_c.as_ptr(), llvm_func_type) };
+            assert!(!func.is_null());
         }
 
         Ok(cxt)

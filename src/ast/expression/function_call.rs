@@ -1,6 +1,9 @@
+use std::ffi::CString;
+
 use crate::ast::Expression;
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
+use llvm_sys::core::LLVMGetNamedFunction;
 use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
@@ -9,7 +12,20 @@ pub struct FunctionCall {
     pub args: Vec<Box<dyn Expression>>,
 }
 
-impl Expression for FunctionCall {}
+impl Expression for FunctionCall {
+    fn codegen(&self, cxt: &mut crate::codegen::CodegenContext) -> anyhow::Result<crate::codegen::TypedValue> {
+        let func_type = cxt.definitions.get_func(&self.name);
+        if func_type.is_none() {
+            anyhow::bail!("Caling unknown function {}", self.name);
+        }
+
+        let func_name = CString::new(self.name.clone()).unwrap();
+        let func_object = unsafe {LLVMGetNamedFunction(cxt.module, func_name.as_ptr())};
+        assert!(!func_object.is_null(), "It exists because we founded it in cxt.definitions");
+
+        todo!();
+    }
+}
 
 #[cfg(test)]
 mod tests {

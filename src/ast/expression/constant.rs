@@ -18,6 +18,8 @@ impl Expression for Float {
             val = LLVMConstReal(ty, self.val);
         }
 
+        assert!(!val.is_null(), "Failed to construct const float {}", self.val);
+
         Ok(TypedValue {
             value: val,
             ty: cxt.definitions.get_type("f64").unwrap(),
@@ -37,6 +39,8 @@ impl Expression for Int {
             let ty = LLVMIntTypeInContext(cxt.cxt, 64);
             val = LLVMConstInt(ty, self.val, 0);
         }
+
+        assert!(!val.is_null(), "Failed to construct const int {}", self.val);
 
         Ok(TypedValue {
             value: val,

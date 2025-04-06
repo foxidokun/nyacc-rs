@@ -44,6 +44,7 @@ impl Statement for FuncImpl {
 
         // -- Create entry block
         let block = unsafe { LLVMAppendBasicBlock(func, c_str!(c"entry")) };
+        assert!(!block.is_null());
         unsafe {
             LLVMPositionBuilderAtEnd(cxt.builder, block);
         }
@@ -64,6 +65,7 @@ impl Statement for FuncImpl {
 
             let llvm_ty = argtype.llvm_type(cxt);
             let alloca = unsafe { LLVMBuildAlloca(cxt.builder, llvm_ty, ZERO_NAME) };
+            assert!(!alloca.is_null());
             unsafe { LLVMBuildStore(cxt.builder, LLVMGetParam(func, i as u32), alloca) };
 
             // -- Remember arg
