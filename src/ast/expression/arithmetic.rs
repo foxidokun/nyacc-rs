@@ -5,9 +5,9 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct Arithmetic {
-    lhs: Box<dyn Expression>,
-    op: OpType,
-    rhs: Box<dyn Expression>,
+    pub lhs: Box<dyn Expression>,
+    pub op: OpType,
+    pub rhs: Box<dyn Expression>,
 }
 
 impl Expression for Arithmetic {}

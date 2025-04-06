@@ -5,7 +5,7 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct Not {
-    expr: Box<dyn Expression>,
+    pub expr: Box<dyn Expression>,
 }
 
 impl Expression for Not {}

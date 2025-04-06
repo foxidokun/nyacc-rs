@@ -5,9 +5,9 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct Let {
-    var: String,
-    tp: Option<String>,
-    expr: Box<dyn Expression>,
+    pub var: String,
+    pub tp: Option<String>,
+    pub expr: Box<dyn Expression>,
 }
 
 impl Statement for Let {}

@@ -5,7 +5,7 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct UnaryMinus {
-    expr: Box<dyn Expression>,
+    pub expr: Box<dyn Expression>,
 }
 
 impl Expression for UnaryMinus {}

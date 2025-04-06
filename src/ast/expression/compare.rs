@@ -5,9 +5,9 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct Compare {
-    lhs: Box<dyn Expression>,
-    cmp: Comparator,
-    rhs: Box<dyn Expression>,
+    pub lhs: Box<dyn Expression>,
+    pub cmp: Comparator,
+    pub rhs: Box<dyn Expression>,
 }
 
 impl Expression for Compare {}

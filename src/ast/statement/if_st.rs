@@ -5,9 +5,9 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct If {
-    check: Box<dyn Expression>,
-    true_body: Vec<Box<dyn Statement>>,
-    else_body: Option<Vec<Box<dyn Statement>>>,
+    pub check: Box<dyn Expression>,
+    pub true_body: Vec<Box<dyn Statement>>,
+    pub else_body: Option<Vec<Box<dyn Statement>>>,
 }
 
 impl Statement for If {}

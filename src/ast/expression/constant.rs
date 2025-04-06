@@ -5,14 +5,14 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct Float {
-    val: f64,
+    pub val: f64,
 }
 
 impl Expression for Float {}
 
 #[derive(new, Acceptor, Debug)]
 pub struct Int {
-    val: u64,
+    pub val: u64,
 }
 
 impl Expression for Int {}

@@ -5,8 +5,8 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct FunctionCall {
-    name: String,
-    args: Vec<Box<dyn Expression>>,
+    pub name: String,
+    pub args: Vec<Box<dyn Expression>>,
 }
 
 impl Expression for FunctionCall {}

@@ -8,7 +8,7 @@ pub struct FuncImpl {
     pub name: String,
     pub args: Vec<TypedArg>,
     pub rettype: String,
-    body: Vec<Box<dyn Statement>>,
+    pub body: Vec<Box<dyn Statement>>,
 }
 
 impl Statement for FuncImpl {}

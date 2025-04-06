@@ -9,6 +9,8 @@ pub mod nodes {
 
 use std::fmt::Debug;
 
+// It's used in tests
+#[allow(dead_code)]
 pub fn compare(lhs: &dyn Debug, rhs: &dyn Debug) -> bool {
     let lhs_fmt = format!("{:?}", lhs);
     let rhs_fmt = format!("{:?}", rhs);

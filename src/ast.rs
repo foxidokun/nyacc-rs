@@ -1,6 +1,7 @@
 use crate::visitor::Acceptor;
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
+pub mod debug;
 pub mod expression;
 pub mod statement;
 
@@ -30,12 +31,38 @@ pub enum Comparator {
     NE,
 }
 
+impl Display for Comparator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let char = match &self {
+            Comparator::LE => "<=",
+            Comparator::GE => ">=",
+            Comparator::LT => "<",
+            Comparator::GT => ">",
+            Comparator::EQ => "==",
+            Comparator::NE => "!=",
+        };
+        write!(f, "{}", char)
+    }
+}
+
 #[derive(Debug)]
 pub enum OpType {
     Mul,
     Div,
     Add,
     Sub,
+}
+
+impl Display for OpType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let char = match &self {
+            OpType::Mul => "*",
+            OpType::Div => "/",
+            OpType::Add => "+",
+            OpType::Sub => "-",
+        };
+        write!(f, "{}", char)
+    }
 }
 
 #[cfg(test)]

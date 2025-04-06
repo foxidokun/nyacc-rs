@@ -5,10 +5,10 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct For {
-    start: Box<dyn Statement>,
-    check: Box<dyn Expression>,
-    exec: Box<dyn Statement>,
-    body: Vec<Box<dyn Statement>>,
+    pub start: Box<dyn Statement>,
+    pub check: Box<dyn Expression>,
+    pub step: Box<dyn Statement>,
+    pub body: Vec<Box<dyn Statement>>,
 }
 
 impl Statement for For {}

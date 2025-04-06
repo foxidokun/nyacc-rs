@@ -3,6 +3,7 @@ mod codegen;
 mod utils;
 mod visitor;
 
+use ast::debug::print_ast;
 use codegen::compile;
 use lalrpop_util::lalrpop_mod;
 
@@ -22,6 +23,9 @@ struct Cli {
     #[arg(short, long, default_value = "./a.out")]
     /// Path for generated ELF file
     output: PathBuf,
+
+    #[arg(long = "dump-ast")]
+    ast_file: Option<PathBuf>,
 }
 
 fn main() {
@@ -42,6 +46,18 @@ fn main() {
         panic!("Failed to parse into AST with error {}", e);
     }
     let ast = ast.unwrap();
+
+    if let Some(ast_path) = cli.ast_file {
+        let file = std::fs::File::create(ast_path);
+        if let Err(e) = file {
+            panic!("Failed to open AST dump file with err {}", e);
+        }
+        let mut file = file.unwrap();
+
+        if let Err(e) = print_ast(&mut file, &ast) {
+            panic!("Failed to write AST with error {}", e);
+        }
+    }
 
     let res = compile(&ast);
     if let Err(e) = res {

@@ -7,8 +7,8 @@ use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct While {
-    cond: Box<dyn Expression>,
-    body: Vec<Box<dyn Statement>>,
+    pub cond: Box<dyn Expression>,
+    pub body: Vec<Box<dyn Statement>>,
 }
 
 impl Statement for While {}

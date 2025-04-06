@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use crate::ast::Expression;
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
@@ -7,6 +9,17 @@ use nyacc_proc::Acceptor;
 pub struct Variable {
     name: String,
     fields: Vec<String>,
+}
+
+impl Display for Variable {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.name)?;
+        for field in &self.fields {
+            write!(f, ".{}", field)?;
+        }
+
+        Ok(())
+    }
 }
 
 impl Expression for Variable {}
