@@ -12,3 +12,4 @@ derive-new = "0.7"
 nyacc_proc = {path = "./lib/proc"}
 anyhow = "1.0"
 clap = { version = "4.5.35", features = ["derive"] }
+llvm-sys = "191.0.0"

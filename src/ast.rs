@@ -1,13 +1,24 @@
-use crate::visitor::Acceptor;
+use crate::{
+    codegen::{CodegenContext, TypedValue},
+    visitor::Acceptor,
+};
 use std::fmt::{Debug, Display};
 
 pub mod debug;
 pub mod expression;
 pub mod statement;
 
-pub trait Expression: Acceptor + Debug {}
+pub trait Expression: Acceptor + Debug {
+    fn codegen(&self, _: &mut CodegenContext) -> anyhow::Result<TypedValue> {
+        todo!();
+    }
+}
 
-pub trait Statement: Acceptor + Debug {}
+pub trait Statement: Acceptor + Debug {
+    fn codegen(&self, _: &mut CodegenContext) -> anyhow::Result<()> {
+        todo!();
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Clone)]
 pub struct TypedArg {

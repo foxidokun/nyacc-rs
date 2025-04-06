@@ -1,4 +1,5 @@
 use crate::ast::{Expression, OpType};
+use crate::codegen::{Type, TypedValue, ZERO_NAME, cast};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use nyacc_proc::Acceptor;
@@ -10,7 +11,52 @@ pub struct Arithmetic {
     pub rhs: Box<dyn Expression>,
 }
 
-impl Expression for Arithmetic {}
+impl Expression for Arithmetic {
+    fn codegen(
+        &self,
+        cxt: &mut crate::codegen::CodegenContext,
+    ) -> anyhow::Result<crate::codegen::TypedValue> {
+        let lhs = self.lhs.codegen(cxt)?;
+        let rhs = self.rhs.codegen(cxt)?;
+
+        let common_type = Type::common_type(&lhs.ty, &rhs.ty)?;
+
+        let lhs = cast(cxt, &lhs.ty, &common_type, lhs.value);
+        let rhs = cast(cxt, &rhs.ty, &common_type, rhs.value);
+
+        macro_rules! dispatch_binop {
+            ($([$op:tt, $float_func:tt, $int_func:tt ]),+) => {
+                match self.op {
+                $(
+                    OpType::$op => {
+                        match common_type.as_ref() {
+                            Type::Float(_) => {
+                                unsafe {llvm_sys::core::$float_func(cxt.builder, lhs, rhs, ZERO_NAME)}
+                            },
+                            Type::Int(_) => {
+                                unsafe {llvm_sys::core::$int_func(cxt.builder, lhs, rhs, ZERO_NAME)}
+                            },
+                            _ => { panic!("This kind of errors should be catched during Type::common_type call") }
+                        }
+                    },
+                )+
+                }
+            };
+        }
+
+        let value = dispatch_binop!(
+            [Mul, LLVMBuildFMul, LLVMBuildMul],
+            [Div, LLVMBuildFDiv, LLVMBuildSDiv],
+            [Add, LLVMBuildFAdd, LLVMBuildAdd],
+            [Sub, LLVMBuildFSub, LLVMBuildSub]
+        );
+
+        Ok(TypedValue {
+            value,
+            ty: common_type,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

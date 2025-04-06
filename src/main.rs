@@ -59,7 +59,7 @@ fn main() {
         }
     }
 
-    let res = compile(&ast);
+    let res = compile(&ast, &cli.output);
     if let Err(e) = res {
         panic!("Failed to compile with error {}", e);
     }

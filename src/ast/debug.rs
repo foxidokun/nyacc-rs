@@ -223,6 +223,18 @@ impl<T: Write> Visitor for ASTPrinter<'_, T> {
         print_body!(self, "Args", node.args);
         Ok(())
     }
+
+    fn visit_return(&mut self, node: &super::statement::Return) -> anyhow::Result<()> {
+        self.shift()?;
+        if let Some(retval) = &node.expr {
+            writeln!(self.writer, "Return val")?;
+            print_subtree!(self, "Val", retval);
+        } else {
+            writeln!(self.writer, "Return void")?;
+        }
+
+        Ok(())
+    }
 }
 
 pub fn print_ast<T: Write>(writer: &mut T, program: &Program) -> anyhow::Result<()> {

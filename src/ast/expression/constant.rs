@@ -1,6 +1,8 @@
 use crate::ast::Expression;
+use crate::codegen::{CodegenContext, TypedValue};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
+use llvm_sys::core::{LLVMConstInt, LLVMConstReal, LLVMDoubleTypeInContext, LLVMIntTypeInContext};
 use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
@@ -8,14 +10,40 @@ pub struct Float {
     pub val: f64,
 }
 
-impl Expression for Float {}
+impl Expression for Float {
+    fn codegen(&self, cxt: &mut CodegenContext) -> anyhow::Result<TypedValue> {
+        let val;
+        unsafe {
+            let ty = LLVMDoubleTypeInContext(cxt.cxt);
+            val = LLVMConstReal(ty, self.val);
+        }
+
+        Ok(TypedValue {
+            value: val,
+            ty: cxt.definitions.get_type("f64").unwrap(),
+        })
+    }
+}
 
 #[derive(new, Acceptor, Debug)]
 pub struct Int {
     pub val: u64,
 }
 
-impl Expression for Int {}
+impl Expression for Int {
+    fn codegen(&self, cxt: &mut CodegenContext) -> anyhow::Result<TypedValue> {
+        let val;
+        unsafe {
+            let ty = LLVMIntTypeInContext(cxt.cxt, 64);
+            val = LLVMConstInt(ty, self.val, 0);
+        }
+
+        Ok(TypedValue {
+            value: val,
+            ty: cxt.definitions.get_type("i64").unwrap(),
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

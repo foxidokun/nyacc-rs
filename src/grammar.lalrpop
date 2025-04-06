@@ -60,7 +60,8 @@ pub Statement: Box<dyn Statement> = {
     "while" "(" <Expr> ")" "{" <Statement*> "}" => Box::new(While::new(<>)),
     "for" "(" <NonEndedStatement> ";" <Expr> ";" <NonEndedStatement> ")" "{" <Statement*> "}" => Box::new(For::new(<>)),
     "if" "(" <Expr> ")" "{" <Statement*> "}" <("else" "{" <Statement*> "}")?> => Box::new(If::new(<>)),
-    <Expr> ";" => Box::new(ExprStatement::new(<>))
+    <Expr> ";" => Box::new(ExprStatement::new(<>)),
+    "return" <Expr?> ";" => Box::new(Return::new(<>))
 };
 
 pub StructDef: Box<dyn Statement> = {

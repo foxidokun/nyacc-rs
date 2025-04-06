@@ -1,4 +1,5 @@
 use crate::ast::{Comparator, Expression};
+use crate::codegen::{Type, TypedValue, ZERO_NAME, cast};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use nyacc_proc::Acceptor;
@@ -10,7 +11,69 @@ pub struct Compare {
     pub rhs: Box<dyn Expression>,
 }
 
-impl Expression for Compare {}
+impl Expression for Compare {
+    fn codegen(
+        &self,
+        cxt: &mut crate::codegen::CodegenContext,
+    ) -> anyhow::Result<crate::codegen::TypedValue> {
+        let lhs = self.lhs.codegen(cxt)?;
+        let rhs = self.rhs.codegen(cxt)?;
+
+        let common_type = Type::common_type(&lhs.ty, &rhs.ty)?;
+
+        let lhs = cast(cxt, &lhs.ty, &common_type, lhs.value);
+        let rhs = cast(cxt, &rhs.ty, &common_type, rhs.value);
+
+        macro_rules! dispatch_binop {
+            ($([$op:tt, $float_pred:tt, $int_pred:tt ]),+) => {
+                match self.cmp {
+                $(
+                    Comparator::$op => {
+                        match common_type.as_ref() {
+                            Type::Int(_) => {
+                                unsafe {llvm_sys::core::LLVMBuildICmp(
+                                    cxt.builder,
+                                    llvm_sys::LLVMIntPredicate::$int_pred,
+                                    lhs,
+                                    rhs,
+                                    ZERO_NAME
+                                )}
+                            },
+                            Type::Float(_) => {
+                                unsafe {llvm_sys::core::LLVMBuildFCmp(
+                                    cxt.builder,
+                                    llvm_sys::LLVMRealPredicate::$float_pred,
+                                    lhs,
+                                    rhs,
+                                    ZERO_NAME
+                                )}
+                            },
+                            _ => { panic!("This kind of errors should be catched during Type::common_type call") }
+                        }
+                    },
+                )+
+                }
+            };
+        }
+
+        let cmp_res = dispatch_binop!(
+            [LE, LLVMRealOLE, LLVMIntSLE],
+            [GE, LLVMRealOGE, LLVMIntSGE],
+            [LT, LLVMRealOLT, LLVMIntSLT],
+            [GT, LLVMRealOGT, LLVMIntSGT],
+            [EQ, LLVMRealOEQ, LLVMIntEQ],
+            [NE, LLVMRealONE, LLVMIntNE]
+        );
+        let cmp_ty = Type::bool_type();
+        let target_type = cxt.definitions.get_type("i8").unwrap();
+        let value = cast(cxt, &cmp_ty, target_type.as_ref(), cmp_res);
+
+        Ok(TypedValue {
+            value,
+            ty: target_type,
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {

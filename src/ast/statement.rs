@@ -27,3 +27,6 @@ pub use program::Program;
 
 mod expr_statement;
 pub use expr_statement::ExprStatement;
+
+mod return_st;
+pub use return_st::Return;

@@ -14,8 +14,8 @@ impl Expression for StructCtor {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::macros::{ast_node, check_ast};
     use crate::ast::OpType;
+    use crate::ast::macros::{ast_node, check_ast};
     use crate::utils::nodes::*;
 
     #[test]
@@ -26,11 +26,7 @@ mod tests {
             ast_node!(
                 StructCtor,
                 "S".into(),
-                vec![
-                    ast_node!(Int, 1),
-                    ast_node!(Int, 2),
-                    ast_node!(Int, 3)
-                ]
+                vec![ast_node!(Int, 1), ast_node!(Int, 2), ast_node!(Int, 3)]
             )
         )
     }
@@ -45,13 +41,7 @@ mod tests {
                 "S".into(),
                 vec![
                     ast_node!(Int, 1),
-                    ast_node!(
-                        StructCtor,
-                        "G".into(),
-                        vec![
-                            ast_node!(Int, 2)
-                        ]
-                    ),
+                    ast_node!(StructCtor, "G".into(), vec![ast_node!(Int, 2)]),
                     ast_node!(
                         Arithmetic,
                         ast_node!(Int, 3),

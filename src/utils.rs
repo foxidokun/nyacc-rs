@@ -1,8 +1,11 @@
 pub mod nodes {
     pub use crate::ast::{
-        expression::{Arithmetic, Compare, Float, FunctionCall, Int, Not, UnaryMinus, Variable, StructCtor},
+        expression::{
+            Arithmetic, Compare, Float, FunctionCall, Int, Not, StructCtor, UnaryMinus, Variable,
+        },
         statement::{
-            Assignment, ExprStatement, For, FuncDef, FuncImpl, If, Let, Program, StructDef, While,
+            Assignment, ExprStatement, For, FuncDef, FuncImpl, If, Let, Program, Return, StructDef,
+            While,
         },
     };
 }

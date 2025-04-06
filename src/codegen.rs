@@ -1,172 +1,104 @@
-use std::{collections::HashMap, rc::Rc};
-
-use anyhow::Context;
-
-use crate::{
-    ast::TypedArg,
-    utils::nodes::{Program, StructDef},
-    visitor::{Acceptor, Visitor},
+use std::{
+    ffi::{CStr, CString, c_char},
+    path::Path,
+    ptr::null_mut,
+    rc::Rc,
 };
 
-trait Type {}
+use llvm_sys::{
+    LLVMOpcode, LLVMValue,
+    core::{LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMPrintModuleToFile},
+};
+use macros::c_str;
 
-struct CustomType {
-    // Field name -> (position, Type)
-    fields: HashMap<String, (usize, Rc<dyn Type>)>,
+use crate::{ast::Statement, utils::nodes::Program};
+
+mod context;
+mod definitions;
+
+pub use context::{CodegenContext, Value};
+pub use definitions::Type;
+
+pub struct TypedValue {
+    pub value: *mut LLVMValue,
+    pub ty: Rc<Type>,
 }
 
-impl CustomType {
-    fn from_def(structdef: &StructDef, types: &ProgramDefinitions) -> anyhow::Result<Self> {
-        let mut type_fields = HashMap::new();
+pub fn compile(prog: &Program, output: &Path) -> anyhow::Result<()> {
+    let mut cxt = CodegenContext::prepare(prog)?;
+    prog.codegen(&mut cxt)?;
 
-        for (pos, field) in structdef.fields.iter().enumerate() {
-            let field_type = types.get_type(&field.tp);
-            if let Some(field_type) = field_type {
-                type_fields.insert(field.name.clone(), (pos, field_type));
-            } else {
-                anyhow::bail!(
-                    "Unknown type {} in definition of {}",
-                    field.tp,
-                    structdef.name
-                );
-            }
-        }
-
-        Ok(Self {
-            fields: type_fields,
-        })
-    }
-}
-
-impl Type for CustomType {}
-
-struct IntType {
-    byte_size: u8,
-}
-
-impl Type for IntType {}
-
-struct FloatType {
-    byte_size: i8,
-}
-
-impl Type for FloatType {}
-
-struct VoidType {}
-impl Type for VoidType {}
-
-struct ProgramDefinitions {
-    /// typename => typedata
-    types: HashMap<String, Rc<dyn Type>>,
-    /// func_name => func_info
-    functions: HashMap<String, (Vec<TypedArg>, Rc<dyn Type>)>,
-}
-
-impl ProgramDefinitions {
-    fn new() -> Self {
-        let mut me = Self {
-            types: HashMap::new(),
-            functions: HashMap::new(),
-        };
-
-        // Insert basic types
-        me.types.insert("void".into(), Rc::new(VoidType {}));
-
-        me.types
-            .insert("i8".into(), Rc::new(IntType { byte_size: 1 }));
-        me.types
-            .insert("i16".into(), Rc::new(IntType { byte_size: 2 }));
-        me.types
-            .insert("i32".into(), Rc::new(IntType { byte_size: 4 }));
-        me.types
-            .insert("i64".into(), Rc::new(IntType { byte_size: 8 }));
-
-        me.types
-            .insert("f32".into(), Rc::new(FloatType { byte_size: 4 }));
-        me.types
-            .insert("f64".into(), Rc::new(FloatType { byte_size: 8 }));
-
-        // TODO: Insert std library functions [until we support includes]
-
-        me
+    let filename_c = CString::new(output.to_str().unwrap()).unwrap();
+    let mut errors: *mut c_char = null_mut();
+    unsafe {
+        LLVMPrintModuleToFile(cxt.module, filename_c.as_ptr(), &mut errors as _);
     }
 
-    fn add_func(
-        &mut self,
-        name: &str,
-        args: &Vec<TypedArg>,
-        ret: Rc<dyn Type>,
-    ) -> anyhow::Result<()> {
-        let res = self.functions.get(name);
-        if let Some((ex_args, ex_ret)) = res {
-            if ex_args != args {
-                anyhow::bail!("Mismatch arg types for fn {}", name);
-            }
-
-            if !std::ptr::addr_eq(Rc::as_ptr(ex_ret), Rc::as_ptr(&ret)) {
-                anyhow::bail!("Mismatch ret types for fn {}", name);
-            }
-        } else {
-            self.functions.insert(name.into(), (args.clone(), ret));
-        }
-
-        Ok(())
-    }
-
-    fn get_type(&self, name: &str) -> Option<Rc<dyn Type>> {
-        self.types.get(name).cloned()
-    }
-}
-
-impl Visitor for ProgramDefinitions {
-    fn visit_program(&mut self, node: &crate::utils::nodes::Program) -> anyhow::Result<()> {
-        for block in &node.blocks {
-            block.accept(self)?;
-        }
-
-        Ok(())
-    }
-
-    fn visit_funcdef(&mut self, node: &crate::utils::nodes::FuncDef) -> anyhow::Result<()> {
-        let rettype = self.get_type(&node.rettype).context(format!(
-            "Unknown type {} in definition of {}",
-            node.rettype, node.name
-        ))?;
-
-        self.add_func(&node.name, &node.args, rettype)
-    }
-
-    fn visit_funcimpl(&mut self, node: &crate::utils::nodes::FuncImpl) -> anyhow::Result<()> {
-        let rettype = self.get_type(&node.rettype).context(format!(
-            "Unknown type {} in definition of {}",
-            node.rettype, node.name
-        ))?;
-
-        self.add_func(&node.name, &node.args, rettype)
-    }
-
-    fn visit_structdef(&mut self, node: &crate::utils::nodes::StructDef) -> anyhow::Result<()> {
-        if self.types.contains_key(&node.name) {
-            anyhow::bail!("Redefinition of {} type", node.name);
-        }
-
-        let ty = Rc::new(CustomType::from_def(node, self)?);
-        self.types.insert(node.name.clone(), ty);
-        Ok(())
-    }
-}
-
-pub fn compile(prog: &Program) -> anyhow::Result<()> {
-    let mut definitions = ProgramDefinitions::new();
-    prog.accept(&mut definitions)?;
-
-    for ty in &definitions.types {
-        println!("We got type {}", ty.0);
-    }
-
-    for func in &definitions.functions {
-        println!("We got function {}", func.0);
+    if !errors.is_null() {
+        let error = unsafe { CStr::from_ptr(errors) };
+        anyhow::bail!(
+            "Failed to dump LLVM IR with err {}",
+            error.to_str().unwrap()
+        );
     }
 
     Ok(())
+}
+
+pub const ZERO_NAME: *const i8 = c_str!(c"");
+
+pub mod macros {
+    macro_rules! c_str {
+        ($str:literal) => {
+            $str.as_ptr() as *const _
+        };
+    }
+
+    pub(crate) use c_str;
+}
+
+pub fn cast(
+    cxt: &mut CodegenContext,
+    from: &Type,
+    to: &Type,
+    val: *mut LLVMValue,
+) -> *mut LLVMValue {
+    // Quickpath
+    if from == to {
+        return val;
+    }
+
+    match to {
+        Type::Float(to_fp) => match from {
+            Type::Float(_) => unsafe {
+                LLVMBuildFPCast(cxt.builder, val, to_fp.llvm_type(cxt), ZERO_NAME)
+            },
+            Type::Int(_) => unsafe {
+                LLVMBuildCast(
+                    cxt.builder,
+                    LLVMOpcode::LLVMSIToFP,
+                    val,
+                    to_fp.llvm_type(cxt),
+                    ZERO_NAME,
+                )
+            },
+            _ => panic!("Cast from incompatable type"),
+        },
+        Type::Int(to_int) => match from {
+            Type::Float(_) => unsafe {
+                LLVMBuildCast(
+                    cxt.builder,
+                    LLVMOpcode::LLVMFPToSI,
+                    val,
+                    to_int.llvm_type(cxt),
+                    ZERO_NAME,
+                )
+            },
+            Type::Int(_) => unsafe {
+                LLVMBuildIntCast(cxt.builder, val, to_int.llvm_type(cxt), ZERO_NAME)
+            },
+            _ => panic!("Cast from incompatable type"),
+        },
+        _ => panic!("Cast to incompatable type"),
+    }
 }
