@@ -1,4 +1,5 @@
 use crate::ast::Expression;
+use crate::codegen::{ZERO_NAME, bool_from_llvm, bool_from_value};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use nyacc_proc::Acceptor;
@@ -8,7 +9,19 @@ pub struct Not {
     pub expr: Box<dyn Expression>,
 }
 
-impl Expression for Not {}
+impl Expression for Not {
+    fn codegen(
+        &self,
+        cxt: &mut crate::codegen::CodegenContext,
+    ) -> anyhow::Result<crate::codegen::TypedValue> {
+        let expr_tv = self.expr.codegen(cxt)?;
+        let expr = bool_from_value(cxt, &expr_tv);
+
+        let cmp_res = unsafe { llvm_sys::core::LLVMBuildNot(cxt.builder, expr.value, ZERO_NAME) };
+
+        Ok(bool_from_llvm(cxt, cmp_res))
+    }
+}
 
 #[cfg(test)]
 mod tests {

@@ -7,7 +7,7 @@ use llvm_sys::{
         LLVMAddFunction, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
         LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMModuleCreateWithNameInContext,
     },
-    prelude::LLVMTypeRef,
+    prelude::{LLVMTypeRef, LLVMValueRef},
 };
 
 use super::{Type, definitions::ProgramDefinitions};
@@ -21,14 +21,14 @@ pub struct Value {
 pub struct VisibilityContext {
     layers: Vec<HashMap<String, Value>>,
     // Currently means function rettype, but possibly can have other meanings like in rust
-    rettype: Option<Rc<Type>>,
+    cur_func: Option<(*mut LLVMValue, Rc<Type>)>,
 }
 
 impl VisibilityContext {
     pub fn new() -> Self {
         Self {
             layers: vec![],
-            rettype: None,
+            cur_func: None,
         }
     }
 
@@ -55,13 +55,38 @@ impl VisibilityContext {
         None
     }
 
-    pub fn set_rettype(&mut self, ty: Rc<Type>) {
-        debug_assert!(self.rettype.is_none(), "overwriting rettype");
-        self.rettype = Some(ty);
+    pub fn enter_function(&mut self, func: LLVMValueRef, rettype: Rc<Type>) {
+        debug_assert!(self.cur_func.is_none(), "overwriting cur func");
+
+        self.cur_func = Some((func, rettype));
     }
 
-    pub fn clear_rettype(&mut self) {
-        self.rettype = None;
+    pub fn cur_fun(&self) -> Option<&(LLVMValueRef, Rc<Type>)> {
+        self.cur_func.as_ref()
+    }
+
+    pub fn exit_function(&mut self) {
+        self.cur_func = None;
+    }
+}
+
+pub struct TypeCache {
+    pub funcs: HashMap<String, LLVMTypeRef>,
+}
+
+impl TypeCache {
+    pub fn new() -> Self {
+        Self {
+            funcs: HashMap::new(),
+        }
+    }
+
+    pub fn store_func(&mut self, name: String, ty: LLVMTypeRef) {
+        self.funcs.insert(name, ty);
+    }
+
+    pub fn get_func(&mut self, name: &str) -> Option<&LLVMTypeRef> {
+        self.funcs.get(name)
     }
 }
 
@@ -71,6 +96,7 @@ pub struct CodegenContext {
     pub module: *mut LLVMModule,
     pub definitions: ProgramDefinitions,
     pub vislayers: VisibilityContext,
+    pub type_cache: TypeCache,
 }
 
 impl CodegenContext {
@@ -90,33 +116,21 @@ impl CodegenContext {
         assert!(!context.is_null() && !module.is_null() && !builder.is_null());
 
         // TODO: Populate types
-        let cxt = Self {
+        let mut cxt = Self {
             cxt: context,
             builder,
             module,
             definitions,
             vislayers: VisibilityContext::new(),
+            type_cache: TypeCache::new(),
         };
 
         // -- Populate functions
         for funcname in cxt.definitions.function_names() {
             let func_type = cxt.definitions.get_func(funcname).unwrap();
 
-            let mut llvm_arg_types: Vec<LLVMTypeRef> = Vec::with_capacity(func_type.0.len());
-
-            for arg in &func_type.0 {
-                let argtype = cxt.definitions.get_type(&arg.tp);
-                if argtype.is_none() {
-                    anyhow::bail!(
-                        "Unknown type {} in {}-th arg of function {funcname}",
-                        arg.tp,
-                        llvm_arg_types.len()
-                    );
-                }
-                let argtype = argtype.unwrap();
-
-                llvm_arg_types.push(argtype.llvm_type(&cxt));
-            }
+            let mut llvm_arg_types: Vec<LLVMTypeRef> =
+                func_type.0.iter().map(|t| t.llvm_type(&cxt)).collect();
 
             let llvm_func_type = unsafe {
                 LLVMFunctionType(
@@ -133,6 +147,7 @@ impl CodegenContext {
             // Maybe save function into cxt here (?)
             let func = unsafe { LLVMAddFunction(cxt.module, func_name_c.as_ptr(), llvm_func_type) };
             assert!(!func.is_null());
+            cxt.type_cache.store_func(funcname.clone(), llvm_func_type);
         }
 
         Ok(cxt)

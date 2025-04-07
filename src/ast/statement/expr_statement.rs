@@ -8,7 +8,12 @@ pub struct ExprStatement {
     pub expr: Box<dyn Expression>,
 }
 
-impl Statement for ExprStatement {}
+impl Statement for ExprStatement {
+    fn codegen(&self, cxt: &mut crate::codegen::CodegenContext) -> anyhow::Result<()> {
+        self.expr.codegen(cxt)?;
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {

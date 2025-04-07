@@ -1,6 +1,8 @@
 use crate::ast::{Expression, Statement, expression::Variable};
+use crate::codegen::cast;
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
+use llvm_sys::core::LLVMBuildStore;
 use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
@@ -9,7 +11,26 @@ pub struct Assignment {
     pub expr: Box<dyn Expression>,
 }
 
-impl Statement for Assignment {}
+impl Statement for Assignment {
+    fn codegen(&self, cxt: &mut crate::codegen::CodegenContext) -> anyhow::Result<()> {
+        if !self.var.fields.is_empty() {
+            anyhow::bail!("Cust structs unsupported yet");
+        }
+
+        let var = cxt.vislayers.get_variable(&self.var.name);
+        if var.is_none() {
+            anyhow::bail!("assig to unknown var {}", self.var.name);
+        }
+        let var = var.unwrap();
+
+        let expr = self.expr.codegen(cxt)?;
+        let expr = cast(cxt, &expr.ty, &var.ty, expr.value);
+
+        unsafe { LLVMBuildStore(cxt.builder, expr, var.llvm_val) };
+
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {

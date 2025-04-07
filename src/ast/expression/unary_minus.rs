@@ -1,6 +1,8 @@
 use crate::ast::Expression;
+use crate::codegen::ZERO_NAME;
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
+use llvm_sys::core::{LLVMBuildFNeg, LLVMBuildNeg};
 use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
@@ -8,7 +10,28 @@ pub struct UnaryMinus {
     pub expr: Box<dyn Expression>,
 }
 
-impl Expression for UnaryMinus {}
+impl Expression for UnaryMinus {
+    fn codegen(
+        &self,
+        cxt: &mut crate::codegen::CodegenContext,
+    ) -> anyhow::Result<crate::codegen::TypedValue> {
+        let mut expr = self.expr.codegen(cxt)?;
+
+        expr.value = match expr.ty.as_ref() {
+            crate::codegen::Type::Float(_) => unsafe {
+                LLVMBuildFNeg(cxt.builder, expr.value, ZERO_NAME)
+            },
+            crate::codegen::Type::Int(_) => unsafe {
+                LLVMBuildNeg(cxt.builder, expr.value, ZERO_NAME)
+            },
+            _ => anyhow::bail!("Unary minus on unsupported type {}", expr.ty),
+        };
+
+        assert!(!expr.value.is_null());
+
+        Ok(expr)
+    }
+}
 
 #[cfg(test)]
 mod tests {

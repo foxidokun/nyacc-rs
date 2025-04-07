@@ -1,2 +1,7 @@
-fn main(a: i8, b: i8) -> i8 {
+fn test(a: i32, b: i32) -> i32 {
+    if (a > b) {
+        return a;
+    } else {
+        return b;
+    }
 }

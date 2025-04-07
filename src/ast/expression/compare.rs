@@ -1,5 +1,5 @@
 use crate::ast::{Comparator, Expression};
-use crate::codegen::{Type, TypedValue, ZERO_NAME, cast};
+use crate::codegen::{Type, ZERO_NAME, bool_from_llvm, cast};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use nyacc_proc::Acceptor;
@@ -66,14 +66,8 @@ impl Expression for Compare {
             [EQ, LLVMRealOEQ, LLVMIntEQ],
             [NE, LLVMRealONE, LLVMIntNE]
         );
-        let cmp_ty = Type::bool_type();
-        let target_type = cxt.definitions.get_type("i8").unwrap();
-        let value = cast(cxt, &cmp_ty, target_type.as_ref(), cmp_res);
 
-        Ok(TypedValue {
-            value,
-            ty: target_type,
-        })
+        Ok(bool_from_llvm(cxt, cmp_res))
     }
 }
 

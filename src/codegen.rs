@@ -106,3 +106,20 @@ pub fn cast(
     assert!(!res.is_null());
     res
 }
+
+pub fn bool_from_llvm(cxt: &mut CodegenContext, val: *mut LLVMValue) -> TypedValue {
+    TypedValue {
+        value: val,
+        ty: cxt.definitions.get_type("bool").unwrap(),
+    }
+}
+
+pub fn bool_from_value(cxt: &mut CodegenContext, val: &TypedValue) -> TypedValue {
+    let target_type = cxt.definitions.get_type("bool").unwrap();
+    let value = cast(cxt, &val.ty, target_type.as_ref(), val.value);
+
+    TypedValue {
+        value,
+        ty: target_type,
+    }
+}

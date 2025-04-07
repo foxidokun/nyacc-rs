@@ -10,7 +10,12 @@ pub struct FuncDef {
     pub rettype: String,
 }
 
-impl Statement for FuncDef {}
+impl Statement for FuncDef {
+    fn codegen(&self, _: &mut crate::codegen::CodegenContext) -> anyhow::Result<()> {
+        // No codegen needed, because it's just a definition
+        Ok(())
+    }
+}
 
 #[cfg(test)]
 mod tests {

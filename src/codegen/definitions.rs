@@ -190,17 +190,15 @@ impl Type {
 
         unreachable!(" Ifs above should never miss");
     }
-
-    pub fn bool_type() -> Self {
-        Type::Int(IntType { bitwidth: 1 })
-    }
 }
+
+type FuncType = (Vec<Rc<Type>>, Rc<Type>);
 
 pub struct ProgramDefinitions {
     /// typename => typedata
     types: HashMap<String, Rc<Type>>,
     /// func_name => func_info
-    functions: HashMap<String, (Vec<TypedArg>, Rc<Type>)>,
+    functions: HashMap<String, Rc<FuncType>>,
 }
 
 impl ProgramDefinitions {
@@ -212,6 +210,9 @@ impl ProgramDefinitions {
 
         // Insert basic types
         me.types.insert("void".into(), Rc::new(Type::Void()));
+
+        me.types
+            .insert("bool".into(), Rc::new(Type::Int(IntType { bitwidth: 1 })));
 
         me.types
             .insert("i8".into(), Rc::new(Type::Int(IntType { bitwidth: 8 })));
@@ -237,9 +238,25 @@ impl ProgramDefinitions {
     }
 
     fn add_func(&mut self, name: &str, args: &Vec<TypedArg>, ret: Rc<Type>) -> anyhow::Result<()> {
+        let mut processed_args = Vec::with_capacity(args.len());
+        for arg in args {
+            let argtype = self.get_type(&arg.tp);
+            if argtype.is_none() {
+                anyhow::bail!(
+                    "Unknown type {} in {}-th arg of function {name}",
+                    arg.tp,
+                    processed_args.len()
+                );
+            }
+            processed_args.push(argtype.unwrap());
+        }
+
         let res = self.functions.get(name);
-        if let Some((ex_args, ex_ret)) = res {
-            if ex_args != args {
+        if let Some(ex_type) = res {
+            let ex_args = &ex_type.0;
+            let ex_ret = &ex_type.1;
+
+            if ex_args != &processed_args {
                 anyhow::bail!("Mismatch arg types for fn {}", name);
             }
 
@@ -247,13 +264,14 @@ impl ProgramDefinitions {
                 anyhow::bail!("Mismatch ret types for fn {}", name);
             }
         } else {
-            self.functions.insert(name.into(), (args.clone(), ret));
+            self.functions
+                .insert(name.into(), Rc::new((processed_args, ret)));
         }
 
         Ok(())
     }
 
-    pub fn get_func(&self, name: &str) -> Option<&(Vec<TypedArg>, Rc<Type>)> {
+    pub fn get_func(&self, name: &str) -> Option<&Rc<FuncType>> {
         self.functions.get(name)
     }
 

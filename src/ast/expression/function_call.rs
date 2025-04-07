@@ -1,9 +1,10 @@
 use std::ffi::CString;
 
 use crate::ast::Expression;
+use crate::codegen::{TypedValue, ZERO_NAME, cast};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
-use llvm_sys::core::LLVMGetNamedFunction;
+use llvm_sys::core::{LLVMBuildCall2, LLVMGetNamedFunction};
 use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
@@ -13,17 +14,46 @@ pub struct FunctionCall {
 }
 
 impl Expression for FunctionCall {
-    fn codegen(&self, cxt: &mut crate::codegen::CodegenContext) -> anyhow::Result<crate::codegen::TypedValue> {
+    fn codegen(
+        &self,
+        cxt: &mut crate::codegen::CodegenContext,
+    ) -> anyhow::Result<crate::codegen::TypedValue> {
         let func_type = cxt.definitions.get_func(&self.name);
         if func_type.is_none() {
-            anyhow::bail!("Caling unknown function {}", self.name);
+            anyhow::bail!("Calling unknown function {}", self.name);
         }
 
-        let func_name = CString::new(self.name.clone()).unwrap();
-        let func_object = unsafe {LLVMGetNamedFunction(cxt.module, func_name.as_ptr())};
-        assert!(!func_object.is_null(), "It exists because we founded it in cxt.definitions");
+        let func_type = func_type.unwrap().clone();
 
-        todo!();
+        let func_name = CString::new(self.name.clone()).unwrap();
+        let func_object = unsafe { LLVMGetNamedFunction(cxt.module, func_name.as_ptr()) };
+        assert!(!func_object.is_null()); // It exists because we founded it in cxt.definitions
+
+        let mut computed_arg = Vec::with_capacity(func_type.0.len());
+        for (i, arg) in self.args.iter().enumerate() {
+            let argval = arg.codegen(cxt)?;
+            let casted = cast(cxt, &argval.ty, &func_type.0[i], argval.value);
+            computed_arg.push(casted);
+        }
+
+        let llvm_func_type = cxt.type_cache.get_func(&self.name).unwrap();
+
+        let call = unsafe {
+            LLVMBuildCall2(
+                cxt.builder,
+                *llvm_func_type,
+                func_object,
+                computed_arg.as_mut_ptr(),
+                computed_arg.len() as u32,
+                ZERO_NAME,
+            )
+        };
+        assert!(!call.is_null());
+
+        Ok(TypedValue {
+            value: call,
+            ty: func_type.1.clone(),
+        })
     }
 }
 

@@ -9,7 +9,11 @@ pub struct StructDef {
     pub fields: Vec<TypedArg>,
 }
 
-impl Statement for StructDef {}
+impl Statement for StructDef {
+    fn codegen(&self, _: &mut crate::codegen::CodegenContext) -> anyhow::Result<()> {
+        todo!();
+    }
+}
 
 #[cfg(test)]
 mod tests {

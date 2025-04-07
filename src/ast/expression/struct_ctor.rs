@@ -9,7 +9,14 @@ pub struct StructCtor {
     pub args: Vec<Box<dyn Expression>>,
 }
 
-impl Expression for StructCtor {}
+impl Expression for StructCtor {
+    fn codegen(
+        &self,
+        _: &mut crate::codegen::CodegenContext,
+    ) -> anyhow::Result<crate::codegen::TypedValue> {
+        todo!()
+    }
+}
 
 #[cfg(test)]
 mod tests {

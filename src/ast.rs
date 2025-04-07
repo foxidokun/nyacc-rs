@@ -9,15 +9,11 @@ pub mod expression;
 pub mod statement;
 
 pub trait Expression: Acceptor + Debug {
-    fn codegen(&self, _: &mut CodegenContext) -> anyhow::Result<TypedValue> {
-        todo!();
-    }
+    fn codegen(&self, _: &mut CodegenContext) -> anyhow::Result<TypedValue>;
 }
 
 pub trait Statement: Acceptor + Debug {
-    fn codegen(&self, _: &mut CodegenContext) -> anyhow::Result<()> {
-        todo!();
-    }
+    fn codegen(&self, _: &mut CodegenContext) -> anyhow::Result<()>;
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

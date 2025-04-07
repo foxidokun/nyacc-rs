@@ -18,7 +18,11 @@ impl Expression for Float {
             val = LLVMConstReal(ty, self.val);
         }
 
-        assert!(!val.is_null(), "Failed to construct const float {}", self.val);
+        assert!(
+            !val.is_null(),
+            "Failed to construct const float {}",
+            self.val
+        );
 
         Ok(TypedValue {
             value: val,

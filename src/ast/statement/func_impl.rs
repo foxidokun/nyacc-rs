@@ -6,8 +6,8 @@ use crate::codegen::{Value, ZERO_NAME};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use llvm_sys::core::{
-    LLVMAppendBasicBlock, LLVMBuildAlloca, LLVMBuildStore, LLVMGetNamedFunction, LLVMGetParam,
-    LLVMPositionBuilderAtEnd,
+    LLVMAppendBasicBlockInContext, LLVMBuildAlloca, LLVMBuildRetVoid, LLVMBuildStore,
+    LLVMBuildUnreachable, LLVMGetNamedFunction, LLVMGetParam, LLVMPositionBuilderAtEnd,
 };
 use nyacc_proc::Acceptor;
 
@@ -27,10 +27,6 @@ impl Statement for FuncImpl {
         };
         let rettype = rettype.unwrap();
 
-        // -- Enter function
-        cxt.vislayers.set_rettype(rettype);
-        cxt.vislayers.enter_layer();
-
         // -- Get function object
         // Note: Definitions should be generated before codegen by compile functions
 
@@ -42,8 +38,12 @@ impl Statement for FuncImpl {
             "Definitions should be generated before codegen by compile functions"
         );
 
+        // -- Enter function
+        cxt.vislayers.enter_function(func, rettype);
+        cxt.vislayers.enter_layer();
+
         // -- Create entry block
-        let block = unsafe { LLVMAppendBasicBlock(func, c_str!(c"entry")) };
+        let block = unsafe { LLVMAppendBasicBlockInContext(cxt.cxt, func, c_str!(c"entry")) };
         assert!(!block.is_null());
         unsafe {
             LLVMPositionBuilderAtEnd(cxt.builder, block);
@@ -83,8 +83,15 @@ impl Statement for FuncImpl {
             st.codegen(cxt)?;
         }
 
+        // Codegen ret / unreachable
+        if &self.rettype == "void" {
+            unsafe { LLVMBuildRetVoid(cxt.builder) };
+        } else {
+            unsafe { LLVMBuildUnreachable(cxt.builder) };
+        }
+
         cxt.vislayers.exit_layer();
-        cxt.vislayers.clear_rettype();
+        cxt.vislayers.exit_function();
 
         Ok(())
     }
