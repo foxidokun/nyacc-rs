@@ -32,7 +32,7 @@ codestyle:
     - cargo fmt --check
 
 build_release:
-  stages: release
+  stage: release
   image: rust
   only:
   - master
