@@ -19,7 +19,7 @@ fn mul() {
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn aboba(a: i32) -> i32 {
+pub extern "C" fn test_id(a: i32) -> i32 {
     a
 }
 
@@ -27,11 +27,11 @@ pub extern "C" fn aboba(a: i32) -> i32 {
 fn ffi_cal() {
     check_codegen!(
         "
-        fn aboba(a: i32) -> i32;
+        fn test_id(a: i32) -> i32;
 
-        fn mul(a: i32, b: i32) -> i32 { return aboba(a) * b; }
+        fn mul(a: i32, b: i32) -> i32 { return test_id(a) * b; }
         ",
-        [extern aboba],
+        [extern test_id],
         [mul as fn(i32, i32) -> i32],
         [assert mul(1, 2) == 2]
     )

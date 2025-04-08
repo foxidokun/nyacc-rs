@@ -1,6 +1,7 @@
 stages:
   - build
   - test
+  - release
 
 build:
   stage: build
@@ -26,7 +27,20 @@ codestyle:
   cache:
     paths:
       - target
-      - ~/.rustup
   script:
     - rustup component add rustfmt
     - cargo fmt --check
+
+build_release:
+  stages: release
+  image: rust
+  only:
+  - master
+  cache:
+    paths:
+      - target
+  script:
+    - cargo build release
+  artifacts:
+    paths:
+      - target/release/nyacc
