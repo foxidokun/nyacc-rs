@@ -39,7 +39,7 @@ build_release:
     paths:
       - target
   script:
-    - cargo build release
+    - cargo build --release
   artifacts:
     paths:
       - target/release/nyacc
