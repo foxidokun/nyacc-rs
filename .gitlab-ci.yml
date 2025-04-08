@@ -5,7 +5,7 @@ stages:
 
 build:
   stage: build
-  image: rust
+  image: rust_custom
   script:
     - cargo build
   cache:
@@ -14,7 +14,7 @@ build:
 
 runtest:
   stage: test
-  image: rust
+  image: rust_custom
   cache:
     paths:
       - target
@@ -23,17 +23,16 @@ runtest:
 
 codestyle:
   stage: test
-  image: rust
+  image: rust_custom
   cache:
     paths:
       - target
   script:
-    - rustup component add rustfmt
     - cargo fmt --check
 
 build_release:
   stage: release
-  image: rust
+  image: rust_custom
   only:
   - master
   cache:
