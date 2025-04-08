@@ -1,13 +1,24 @@
-use std::{collections::HashMap, ffi::CString, rc::Rc};
+use std::{
+    collections::HashMap,
+    ffi::{CStr, CString, c_void},
+    ptr::null_mut,
+    rc::Rc,
+};
 
 use crate::{utils::nodes::Program, visitor::Acceptor};
 use llvm_sys::{
-    LLVMBuilder, LLVMContext, LLVMModule, LLVMValue,
+    LLVMBuilder, LLVMContext, LLVMLinkage, LLVMModule, LLVMValue,
     core::{
         LLVMAddFunction, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
-        LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMModuleCreateWithNameInContext,
+        LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMGetNamedFunction,
+        LLVMModuleCreateWithNameInContext, LLVMSetLinkage,
+    },
+    execution_engine::{
+        LLVMAddGlobalMapping, LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine,
+        LLVMGetFunctionAddress, LLVMLinkInMCJIT, LLVMOpaqueExecutionEngine,
     },
     prelude::{LLVMTypeRef, LLVMValueRef},
+    target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget},
 };
 
 use super::{Type, definitions::ProgramDefinitions};
@@ -147,6 +158,8 @@ impl CodegenContext {
             // Maybe save function into cxt here (?)
             let func = unsafe { LLVMAddFunction(cxt.module, func_name_c.as_ptr(), llvm_func_type) };
             assert!(!func.is_null());
+            // Set external linkage
+            unsafe { LLVMSetLinkage(func, LLVMLinkage::LLVMExternalLinkage) };
             cxt.type_cache.store_func(funcname.clone(), llvm_func_type);
         }
 
@@ -159,6 +172,92 @@ impl Drop for CodegenContext {
         unsafe {
             LLVMDisposeBuilder(self.builder);
             LLVMDisposeModule(self.module);
+            LLVMContextDispose(self.cxt);
+        }
+    }
+}
+
+pub struct JitEngine {
+    cxt: *mut LLVMContext,
+    ee: *mut LLVMOpaqueExecutionEngine,
+    module: *mut LLVMModule,
+}
+
+impl JitEngine {
+    pub fn from_codegen_cxt(mut cxt: CodegenContext) -> Self {
+        let ee = unsafe {
+            LLVMLinkInMCJIT();
+            LLVM_InitializeNativeTarget();
+            LLVM_InitializeNativeAsmPrinter();
+
+            // Build an execution engine.
+            {
+                let mut ee = std::mem::MaybeUninit::uninit();
+                let mut err = std::mem::zeroed();
+
+                // This moves ownership of the module into the execution engine.
+                if LLVMCreateExecutionEngineForModule(ee.as_mut_ptr(), cxt.module, &mut err) != 0 {
+                    // In case of error, we must avoid using the uninitialized ExecutionEngineRef.
+                    assert!(!err.is_null());
+                    panic!(
+                        "Failed to create execution engine: {:?}",
+                        CStr::from_ptr(err)
+                    );
+                }
+
+                ee.assume_init()
+            }
+        };
+
+        /*
+         * CodegenContext::module is now owned by ExecutionEngine => no need to drop it but CodegenContext should't drop it
+         * Also we need to stole CodegenContext::cxt
+         */
+        let llvm_context = cxt.cxt;
+        let llvm_module = cxt.module;
+        cxt.cxt = null_mut();
+        cxt.module = null_mut();
+
+        Self {
+            cxt: llvm_context,
+            ee,
+            module: llvm_module,
+        }
+    }
+
+    // Safety: you have to ensure that T is correct function type
+    pub fn get_func_addr(&self, name: &str) -> anyhow::Result<*const ()> {
+        let c_name = CString::new(name).unwrap();
+
+        let addr = unsafe { LLVMGetFunctionAddress(self.ee, c_name.as_ptr()) };
+        let ptr: *const () = addr as *const ();
+
+        if ptr.is_null() {
+            anyhow::bail!("No '{}' function found", name)
+        }
+
+        Ok(ptr)
+    }
+
+    pub fn add_func_mapping(&self, name: &str, obj: *mut ()) -> anyhow::Result<()> {
+        let func_name = CString::new(name).unwrap();
+        let func = unsafe { LLVMGetNamedFunction(self.module, func_name.as_ptr() as *const _) };
+        if func.is_null() {
+            anyhow::bail!("Function {} wasn;t imported", name);
+        }
+
+        unsafe {
+            LLVMAddGlobalMapping(self.ee, func, obj as *mut c_void);
+        }
+
+        Ok(())
+    }
+}
+
+impl Drop for JitEngine {
+    fn drop(&mut self) {
+        unsafe {
+            LLVMDisposeExecutionEngine(self.ee);
             LLVMContextDispose(self.cxt);
         }
     }

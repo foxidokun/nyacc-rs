@@ -10,6 +10,7 @@ lalrpop = "0.22.1"
 lalrpop-util = { version = "0.22.1", features = ["lexer", "unicode"] }
 derive-new = "0.7"
 nyacc_proc = {path = "./lib/proc"}
+nyastd = {path = "./lib/nyastd"}
 anyhow = "1.0"
 clap = { version = "4.5.35", features = ["derive"] }
 llvm-sys = "191.0.0"

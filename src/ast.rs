@@ -80,8 +80,7 @@ mod macros {
 
             let res = crate::grammar::$parser::new().parse($input);
             if let Err(e) = &res {
-                eprintln!("Failed with err {:?}", e);
-                assert!(false);
+                panic!("Failed with err {:?}", e);
             }
             let res = res.unwrap();
 
@@ -92,7 +91,7 @@ mod macros {
                 eprintln!("Expected:\n\t{:?}", $expected);
                 eprintln!("Got:\n\t{:?}", res.as_ref());
 
-                assert!(false);
+                panic!("ast mismatch");
             }
         }};
     }

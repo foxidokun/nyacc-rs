@@ -16,7 +16,10 @@ use crate::{ast::Statement, utils::nodes::Program};
 mod context;
 mod definitions;
 
-pub use context::{CodegenContext, Value};
+#[cfg(test)]
+mod tests;
+
+pub use context::{CodegenContext, JitEngine, Value};
 pub use definitions::Type;
 
 pub struct TypedValue {
@@ -24,7 +27,7 @@ pub struct TypedValue {
     pub ty: Rc<Type>,
 }
 
-pub fn compile(prog: &Program, output: &Path) -> anyhow::Result<()> {
+pub fn ir_target(prog: &Program, output: &Path) -> anyhow::Result<()> {
     let mut cxt = CodegenContext::prepare(prog)?;
     prog.codegen(&mut cxt)?;
 
@@ -42,6 +45,29 @@ pub fn compile(prog: &Program, output: &Path) -> anyhow::Result<()> {
             error.to_str().unwrap()
         );
     }
+
+    Ok(())
+}
+
+pub fn jit_target(prog: &Program) -> anyhow::Result<()> {
+    let mut cxt = CodegenContext::prepare(prog)?;
+    prog.codegen(&mut cxt)?;
+
+    let ee = JitEngine::from_codegen_cxt(cxt);
+    nyastd::register_functions(|name: &'static str, addr| {
+        /* Currently here we ignore Err's, cause probably they caused by unimported functions
+         * but as TODO we should add std func definitions into func. But it requires proc_macro magic
+         * for parsing function types
+         */
+        let _ = ee.add_func_mapping(name, addr);
+    });
+
+    let func_ptr = ee.get_func_addr("main")?;
+    // TODO: Validate `main` function type in compile phase
+
+    let func_ptr: fn() -> () = unsafe { std::mem::transmute(func_ptr) };
+
+    func_ptr();
 
     Ok(())
 }

@@ -61,8 +61,7 @@ mod tests {
         ($parser:tt, $str:expr, $expect:expr) => {
             let res = grammar::$parser::new().parse($str);
             if let Err(e) = &res {
-                eprintln!("Failed with err {:?}", e);
-                assert!(false);
+                panic!("Failed with err {:?}", e);
             }
             let res = res.unwrap();
             assert_eq!(res, $expect);

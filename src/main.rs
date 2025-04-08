@@ -4,28 +4,41 @@ mod utils;
 mod visitor;
 
 use ast::debug::print_ast;
-use codegen::compile;
+use codegen::{ir_target, jit_target};
 use lalrpop_util::lalrpop_mod;
 
 lalrpop_mod!(grammar); // synthesized by LALRPOP
 
 use std::path::PathBuf;
 
-use clap::Parser;
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(version, about)]
 struct Cli {
+    #[command(subcommand)]
+    /// Compilation target
+    target: CompileTarget,
+
     #[arg(short, long, value_name = "FILE")]
     /// Path of input NyaC program
     input: PathBuf,
+}
 
-    #[arg(short, long, default_value = "./a.out")]
-    /// Path for generated ELF file
-    output: PathBuf,
-
-    #[arg(long = "dump-ast")]
-    ast_file: Option<PathBuf>,
+#[derive(Subcommand)]
+enum CompileTarget {
+    /// Emit generated AST tree
+    Ast {
+        #[arg(short, long, default_value = "./out.ast")]
+        output: PathBuf,
+    },
+    /// Emit generated llvm IR
+    Ir {
+        #[arg(short, long, default_value = "./out.ll")]
+        output: PathBuf,
+    },
+    /// Compile & execute via LLVM JIT
+    Jit {},
 }
 
 fn main() {
@@ -47,20 +60,29 @@ fn main() {
     }
     let ast = ast.unwrap();
 
-    if let Some(ast_path) = cli.ast_file {
-        let file = std::fs::File::create(ast_path);
-        if let Err(e) = file {
-            panic!("Failed to open AST dump file with err {}", e);
-        }
-        let mut file = file.unwrap();
+    match cli.target {
+        CompileTarget::Ast { output } => {
+            let file = std::fs::File::create(output);
+            if let Err(e) = file {
+                panic!("Failed to open AST dump file with err {}", e);
+            }
+            let mut file = file.unwrap();
 
-        if let Err(e) = print_ast(&mut file, &ast) {
-            panic!("Failed to write AST with error {}", e);
+            if let Err(e) = print_ast(&mut file, &ast) {
+                panic!("Failed to write AST with error {}", e);
+            }
         }
-    }
-
-    let res = compile(&ast, &cli.output);
-    if let Err(e) = res {
-        panic!("Failed to compile with error {}", e);
+        CompileTarget::Ir { output } => {
+            let res = ir_target(&ast, &output);
+            if let Err(e) = res {
+                panic!("Failed to compile with error {}", e);
+            }
+        }
+        CompileTarget::Jit {} => {
+            let res = jit_target(&ast);
+            if let Err(e) = res {
+                panic!("Failed to compile with error {}", e);
+            }
+        }
     }
 }
