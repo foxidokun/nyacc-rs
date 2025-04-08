@@ -39,6 +39,8 @@ nyacc --input examples/simple.nya ir -o ./out.ast
 ```
 
 ### Build NyaCC
+**For Linux:** You can download artifacts of `build_release` job on master, it contains static linked nyacc executable
+
 You will need LLVM19.1. With that, you can just build it as any rust project with 
 ```bash
 cargo build --release
