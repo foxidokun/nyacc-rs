@@ -5,7 +5,7 @@ stages:
 
 build:
   stage: build
-  image: rust_custom
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   script:
     - cargo build
   cache:
@@ -14,16 +14,19 @@ build:
 
 runtest:
   stage: test
-  image: rust_custom
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   cache:
     paths:
       - target
   script:
-    - cargo test
+    - cargo test -- -Z unstable-options --format json --report-time | cargo2junit > results.xml
+  artifacts:
+    reports:
+      junit: results.xml
 
 codestyle:
   stage: test
-  image: rust_custom
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   cache:
     paths:
       - target
@@ -32,7 +35,7 @@ codestyle:
 
 build_release:
   stage: release
-  image: rust_custom
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   only:
   - master
   cache:
