@@ -5,7 +5,7 @@ stages:
 
 build:
   stage: build
-  image: rust_custom
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   script:
     - cargo build
   cache:
@@ -14,7 +14,7 @@ build:
 
 runtest:
   stage: test
-  image: rust_custom
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   cache:
     paths:
       - target
@@ -26,7 +26,7 @@ runtest:
 
 codestyle:
   stage: test
-  image: rust_custom
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   cache:
     paths:
       - target
@@ -35,7 +35,7 @@ codestyle:
 
 build_release:
   stage: release
-  image: rust_custom
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   only:
   - master
   cache:
