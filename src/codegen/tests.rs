@@ -1,4 +1,5 @@
 #![cfg(test)]
+
 mod macros {
     macro_rules! check_codegen {
         ($code: expr, $([$($args:tt)*]),*) => {{
@@ -22,8 +23,8 @@ mod macros {
 
             let $name: extern "C" fn($($args),*) -> $ret = unsafe { std::mem::transmute(func_ptr) };
         };
-        ($ee:ident assert $name:ident($($arg:tt),*) == $exp:expr) => {{
-            assert_eq!($name($($arg),*), $exp);
+        ($ee:ident assert $name:ident($($arg:tt)*) == $exp:expr) => {{
+            assert_eq!($name($($arg)*), $exp);
         }};
         ($ee:ident extern $name:ident) => {{
             $ee.add_func_mapping(stringify!($name), $name as *mut ()).unwrap();
@@ -34,3 +35,5 @@ mod macros {
 }
 
 mod simple;
+
+mod hacks;

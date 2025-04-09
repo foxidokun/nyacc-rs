@@ -19,7 +19,10 @@ runtest:
     paths:
       - target
   script:
-    - cargo test
+    - cargo test -- -Z unstable-options --format json --report-time | cargo2junit > results.xml
+  artifacts:
+    reports:
+      junit: results.xml
 
 codestyle:
   stage: test
