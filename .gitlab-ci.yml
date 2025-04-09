@@ -3,21 +3,30 @@ stages:
   - test
   - release
 
+cache: &global_cache          # Default cache configuration with YAML variable
+                              # `global_cache` pointing to this block
+  key: "nyacc-rs"  # Share cache between all jobs on one branch/tag
+  paths:                      # Paths to cache
+    - .cargo/bin
+    - .cargo/registry/index
+    - .cargo/registry/cache
+    - target/
+  policy: pull-push           # All jobs not setup otherwise pull from
+                              # and push to the cache
+
+variables:
+  CARGO_HOME: ${CI_PROJECT_DIR}/.cargo # Move cargo data into the project
+                                       # directory so it can be cached
+
 build:
   stage: build
   image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   script:
     - cargo build
-  cache:
-    paths:
-      - target
 
 runtest:
   stage: test
   image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
-  cache:
-    paths:
-      - target
   script:
     - cargo test -- -Z unstable-options --format json --report-time | cargo2junit > results.xml
   artifacts:
@@ -27,9 +36,6 @@ runtest:
 codestyle:
   stage: test
   image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
-  cache:
-    paths:
-      - target
   script:
     - cargo fmt --check
 
@@ -38,9 +44,6 @@ build_release:
   image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
   only:
   - master
-  cache:
-    paths:
-      - target
   script:
     - cargo build --release
   artifacts:
