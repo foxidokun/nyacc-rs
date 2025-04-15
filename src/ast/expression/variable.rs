@@ -31,9 +31,7 @@ impl Variable {
             anyhow::bail!("Unknown variable {}", self.name);
         }
         let mut var = var.unwrap();
-        let mut indices = vec![
-            unsafe{ LLVMConstInt(LLVMIntTypeInContext(cxt.cxt, 32), 0, 0)}
-        ];
+        let mut indices = vec![unsafe { LLVMConstInt(LLVMIntTypeInContext(cxt.cxt, 32), 0, 0) }];
 
         let orig_type = var.ty.clone();
 
@@ -41,19 +39,39 @@ impl Variable {
             if let Type::Custom(ty) = var.ty.as_ref() {
                 let field = ty.fields.get(field_name);
                 if field.is_none() {
-                    anyhow::bail!("unknown field ({}) subscription of variable ({}) with type ({})", field_name, self.name, var.ty);
+                    anyhow::bail!(
+                        "unknown field ({}) subscription of variable ({}) with type ({})",
+                        field_name,
+                        self.name,
+                        var.ty
+                    );
                 }
                 let field = field.unwrap();
-                indices.push(unsafe{ LLVMConstInt(LLVMIntTypeInContext(cxt.cxt, 32), field.0 as u64, 0)});
+                indices.push(unsafe {
+                    LLVMConstInt(LLVMIntTypeInContext(cxt.cxt, 32), field.0 as u64, 0)
+                });
                 var.ty = field.1.clone();
             } else {
-                anyhow::bail!("Field ({}) subscription of variable ({}) with primitive type ({})", field_name, self.name, var.ty);
+                anyhow::bail!(
+                    "Field ({}) subscription of variable ({}) with primitive type ({})",
+                    field_name,
+                    self.name,
+                    var.ty
+                );
             }
         }
 
         /* Get ptr of field */
-        let value =
-            unsafe { LLVMBuildGEP2(cxt.builder, orig_type.llvm_type(cxt), var.value, indices.as_mut_ptr(), indices.len() as u32, ZERO_NAME) };
+        let value = unsafe {
+            LLVMBuildGEP2(
+                cxt.builder,
+                orig_type.llvm_type(cxt),
+                var.value,
+                indices.as_mut_ptr(),
+                indices.len() as u32,
+                ZERO_NAME,
+            )
+        };
         assert!(!value.is_null());
 
         Ok(TypedValue { value, ty: var.ty })
@@ -68,7 +86,8 @@ impl Expression for Variable {
         let var = self.codegen_gep(cxt)?;
 
         /* Load field */
-        let value = unsafe { LLVMBuildLoad2(cxt.builder, var.ty.llvm_type(cxt), var.value, ZERO_NAME) };
+        let value =
+            unsafe { LLVMBuildLoad2(cxt.builder, var.ty.llvm_type(cxt), var.value, ZERO_NAME) };
 
         Ok(TypedValue { value, ty: var.ty })
     }

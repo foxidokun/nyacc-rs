@@ -2,12 +2,15 @@ use crate::ast::Expression;
 use crate::codegen::{TypedValue, ZERO_NAME};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
-use llvm_sys::core::{LLVMBuildAlloca, LLVMBuildLoad2, LLVMBuildMemSet, LLVMConstInt, LLVMGetEntryBasicBlock, LLVMGetInsertBlock, LLVMIntTypeInContext, LLVMPositionBuilderAtEnd, LLVMSizeOf};
+use llvm_sys::core::{
+    LLVMBuildAlloca, LLVMBuildLoad2, LLVMBuildMemSet, LLVMConstInt, LLVMGetEntryBasicBlock,
+    LLVMGetInsertBlock, LLVMIntTypeInContext, LLVMPositionBuilderAtEnd, LLVMSizeOf,
+};
 use nyacc_proc::Acceptor;
 
 #[derive(new, Acceptor, Debug)]
 pub struct StructCtor {
-    pub name: String
+    pub name: String,
 }
 
 impl Expression for StructCtor {
@@ -41,7 +44,7 @@ impl Expression for StructCtor {
                 alloca,
                 LLVMConstInt(LLVMIntTypeInContext(cxt.cxt, 64), 0, 0),
                 LLVMSizeOf(llvm_ty),
-                1
+                1,
             );
             assert!(!res.is_null());
         }
@@ -50,10 +53,7 @@ impl Expression for StructCtor {
         let value = unsafe { LLVMBuildLoad2(cxt.builder, llvm_ty, alloca, ZERO_NAME) };
         assert!(!value.is_null());
 
-        Ok(TypedValue {
-            value,
-            ty
-        })
+        Ok(TypedValue { value, ty })
     }
 }
 
@@ -66,25 +66,11 @@ mod tests {
 
     #[test]
     fn simple_expressions() {
-        check_ast!(
-            ExprParser,
-            "S {}",
-            ast_node!(
-                StructCtor,
-                "S".into()
-            )
-        )
+        check_ast!(ExprParser, "S {}", ast_node!(StructCtor, "S".into()))
     }
 
     #[test]
     fn complex_args() {
-        check_ast!(
-            ExprParser,
-            "S {}",
-            ast_node!(
-                StructCtor,
-                "S".into()
-            )
-        )
+        check_ast!(ExprParser, "S {}", ast_node!(StructCtor, "S".into()))
     }
 }

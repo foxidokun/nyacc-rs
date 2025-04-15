@@ -36,9 +36,9 @@ enum CompileTarget {
     Ir {
         #[arg(short, long, default_value = "./out.ll")]
         output: PathBuf,
-        
+
         #[arg(long)]
-        no_optimize: bool
+        no_optimize: bool,
     },
     /// Compile & execute via LLVM JIT
     Jit {},
@@ -75,7 +75,10 @@ fn main() {
                 panic!("Failed to write AST with error {}", e);
             }
         }
-        CompileTarget::Ir { output, no_optimize } => {
+        CompileTarget::Ir {
+            output,
+            no_optimize,
+        } => {
             let res = ir_target(&ast, &output, no_optimize);
             if let Err(e) = res {
                 panic!("Failed to compile with error {}", e);

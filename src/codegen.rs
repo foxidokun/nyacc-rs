@@ -1,15 +1,26 @@
 use std::{
     ffi::{CStr, CString, c_char},
     path::Path,
-    ptr::{null, null_mut},
+    ptr::null_mut,
     rc::Rc,
 };
 
 use llvm_sys::{
-    core::{LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMDisposeMessage, LLVMDisposePassManager, LLVMPrintModuleToFile}, target::LLVM_InitializeNativeTarget, target_machine::{
-        LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault, LLVMCodeModel::LLVMCodeModelDefault, LLVMCreateTargetMachine, LLVMDisposeTargetMachine, LLVMGetDefaultTargetTriple, LLVMGetHostCPUFeatures, LLVMGetHostCPUName, LLVMGetTargetFromTriple, LLVMRelocMode::LLVMRelocStatic
-
-    }, transforms::pass_builder::{LLVMCreatePassBuilderOptions, LLVMDisposePassBuilderOptions, LLVMRunPasses}, LLVMModule, LLVMOpcode, LLVMValue
+    LLVMModule, LLVMOpcode, LLVMValue,
+    core::{
+        LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMDisposeMessage,
+        LLVMPrintModuleToFile,
+    },
+    target::LLVM_InitializeNativeTarget,
+    target_machine::{
+        LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault, LLVMCodeModel::LLVMCodeModelDefault,
+        LLVMCreateTargetMachine, LLVMDisposeTargetMachine, LLVMGetDefaultTargetTriple,
+        LLVMGetHostCPUFeatures, LLVMGetHostCPUName, LLVMGetTargetFromTriple,
+        LLVMRelocMode::LLVMRelocStatic,
+    },
+    transforms::pass_builder::{
+        LLVMCreatePassBuilderOptions, LLVMDisposePassBuilderOptions, LLVMRunPasses,
+    },
 };
 use macros::c_str;
 
@@ -84,7 +95,7 @@ pub fn jit_target(prog: &Program) -> anyhow::Result<()> {
 // to avoid calling Dispose* functions by hand
 
 fn run_optimizer(module: *mut LLVMModule) {
-    unsafe {LLVM_InitializeNativeTarget()};
+    unsafe { LLVM_InitializeNativeTarget() };
 
     let triple = unsafe { LLVMGetDefaultTargetTriple() };
     assert!(!triple.is_null());
@@ -106,10 +117,10 @@ fn run_optimizer(module: *mut LLVMModule) {
     };
     assert!(!target.is_null());
 
-    let cpu = unsafe{LLVMGetHostCPUName()};
+    let cpu = unsafe { LLVMGetHostCPUName() };
     assert!(!cpu.is_null());
 
-    let features = unsafe{ LLVMGetHostCPUFeatures() };
+    let features = unsafe { LLVMGetHostCPUFeatures() };
     assert!(!features.is_null());
 
     let machine = unsafe {
@@ -125,15 +136,15 @@ fn run_optimizer(module: *mut LLVMModule) {
     };
     assert!(!machine.is_null());
 
-    let options = unsafe{ LLVMCreatePassBuilderOptions() };
+    let options = unsafe { LLVMCreatePassBuilderOptions() };
     assert!(!options.is_null());
 
-    unsafe {LLVMRunPasses(module, c"default<O2>".as_ptr(), machine, options)};
+    unsafe { LLVMRunPasses(module, c"default<O2>".as_ptr(), machine, options) };
 
     /* Cleanup */
     unsafe {
         LLVMDisposeTargetMachine(machine);
-        LLVMDisposePassBuilderOptions(options);;
+        LLVMDisposePassBuilderOptions(options);
         LLVMDisposeMessage(triple);
         LLVMDisposeMessage(cpu);
         LLVMDisposeMessage(features);

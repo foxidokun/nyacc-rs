@@ -3,7 +3,8 @@ use std::{collections::HashMap, ffi::CString, fmt::Display, rc::Rc};
 use anyhow::Context;
 use llvm_sys::{
     core::{
-        LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMGetTypeByName2, LLVMIntTypeInContext, LLVMVoidTypeInContext
+        LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMGetTypeByName2, LLVMIntTypeInContext,
+        LLVMVoidTypeInContext,
     },
     prelude::LLVMTypeRef,
 };
@@ -45,7 +46,7 @@ impl CustomType {
     pub fn llvm_type(&self, cxt: &CodegenContext) -> LLVMTypeRef {
         let name = CString::new(self.name.clone()).unwrap();
         let res = unsafe { LLVMGetTypeByName2(cxt.cxt, name.as_ptr()) };
-        assert!( !res.is_null() );
+        assert!(!res.is_null());
         res
     }
 

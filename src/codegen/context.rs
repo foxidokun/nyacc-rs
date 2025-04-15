@@ -21,8 +21,7 @@ use llvm_sys::{
     target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget},
 };
 
-use super::{definitions::ProgramDefinitions, Type, TypedValue};
-
+use super::{Type, TypedValue, definitions::ProgramDefinitions};
 
 pub struct VisibilityContext {
     layers: Vec<HashMap<String, TypedValue>>,
