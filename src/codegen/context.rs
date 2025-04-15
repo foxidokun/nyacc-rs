@@ -185,6 +185,11 @@ impl JitEngine {
             LLVM_InitializeNativeTarget();
             LLVM_InitializeNativeAsmPrinter();
 
+            #[cfg(not(test))]
+            {
+                // TODO: Optimization passes (disabled if in tests)
+            }
+
             // Build an execution engine.
             {
                 let mut ee = std::mem::MaybeUninit::uninit();

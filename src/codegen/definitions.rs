@@ -1,10 +1,9 @@
-use std::{collections::HashMap, fmt::Display, rc::Rc};
+use std::{collections::HashMap, ffi::CString, fmt::Display, rc::Rc};
 
 use anyhow::Context;
 use llvm_sys::{
     core::{
-        LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMIntTypeInContext,
-        LLVMVoidTypeInContext,
+        LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMGetTypeByName2, LLVMIntTypeInContext, LLVMVoidTypeInContext
     },
     prelude::LLVMTypeRef,
 };
@@ -15,9 +14,9 @@ use super::CodegenContext;
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct CustomType {
-    name: String,
+    pub name: String,
     // Field name -> (position, Type)
-    fields: HashMap<String, (usize, Rc<Type>)>,
+    pub fields: HashMap<String, (usize, Rc<Type>)>,
 }
 
 impl CustomType {
@@ -43,14 +42,11 @@ impl CustomType {
         })
     }
 
-    pub fn llvm_type(&self, _cxt: &CodegenContext) -> LLVMTypeRef {
-        panic!("Custom types are currently unsupported");
-
-        /*
+    pub fn llvm_type(&self, cxt: &CodegenContext) -> LLVMTypeRef {
         let name = CString::new(self.name.clone()).unwrap();
-        unsafe { LLVMGetTypeByName2(cxt.cxt, name.as_ptr()) }
-        // TODO: Add assert
-        */
+        let res = unsafe { LLVMGetTypeByName2(cxt.cxt, name.as_ptr()) };
+        assert!( !res.is_null() );
+        res
     }
 
     #[cfg(test)]
@@ -127,6 +123,14 @@ impl Type {
         assert!(!res.is_null());
 
         res
+    }
+
+    /// This type can perform arithmetic
+    pub fn arithmetic(&self) -> bool {
+        match self {
+            Type::Void() | Type::Custom(_) => false,
+            Type::Float(_) | Type::Int(_) => true,
+        }
     }
 }
 
