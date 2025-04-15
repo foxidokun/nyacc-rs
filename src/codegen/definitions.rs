@@ -242,7 +242,11 @@ impl ProgramDefinitions {
         me
     }
 
-    fn add_func(&mut self, name: &str, args: &Vec<TypedArg>, ret: Rc<Type>) -> anyhow::Result<()> {
+    fn add_func(&mut self, name: &str, args: &Vec<TypedArg>, ret: &str) -> anyhow::Result<()> {
+        let ret = self
+            .get_type(ret)
+            .context(format!("Unknown type {} in func def", ret))?;
+
         let mut processed_args = Vec::with_capacity(args.len());
         for arg in args {
             let argtype = self.get_type(&arg.tp);
@@ -266,21 +270,12 @@ impl ProgramDefinitions {
             }
         }
 
-        let res = self.functions.get(name);
-        if let Some(ex_type) = res {
-            let ex_args = &ex_type.0;
-            let ex_ret = &ex_type.1;
+        let res = self
+            .functions
+            .insert(name.into(), Rc::new((processed_args, ret)));
 
-            if ex_args != &processed_args {
-                anyhow::bail!("Mismatch arg types for fn {}", name);
-            }
-
-            if &ret != ex_ret {
-                anyhow::bail!("Mismatch ret types for fn {}", name);
-            }
-        } else {
-            self.functions
-                .insert(name.into(), Rc::new((processed_args, ret)));
+        if res.is_some() {
+            anyhow::bail!("Redefenition of func {}", name);
         }
 
         Ok(())
@@ -309,21 +304,11 @@ impl Visitor for ProgramDefinitions {
     }
 
     fn visit_funcdef(&mut self, node: &crate::utils::nodes::FuncDef) -> anyhow::Result<()> {
-        let rettype = self.get_type(&node.rettype).context(format!(
-            "Unknown type {} in definition of {}",
-            node.rettype, node.name
-        ))?;
-
-        self.add_func(&node.name, &node.args, rettype)
+        self.add_func(&node.name, &node.args, &node.rettype)
     }
 
     fn visit_funcimpl(&mut self, node: &crate::utils::nodes::FuncImpl) -> anyhow::Result<()> {
-        let rettype = self.get_type(&node.rettype).context(format!(
-            "Unknown type {} in definition of {}",
-            node.rettype, node.name
-        ))?;
-
-        self.add_func(&node.name, &node.args, rettype)
+        self.add_func(&node.name, &node.args, &node.rettype)
     }
 
     fn visit_structdef(&mut self, node: &crate::utils::nodes::StructDef) -> anyhow::Result<()> {
