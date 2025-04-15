@@ -60,9 +60,7 @@ impl Expression for StructCtor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ast::OpType;
     use crate::ast::macros::{ast_node, check_ast};
-    use crate::utils::nodes::*;
 
     #[test]
     fn simple_expressions() {

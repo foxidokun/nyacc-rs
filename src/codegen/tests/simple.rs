@@ -82,6 +82,59 @@ fn test_for_loop() {
 }
 
 #[test]
+fn test_custom_types() {
+    check_codegen!(
+        "
+        struct A {
+            a: i64
+        }
+
+        struct B {
+            a: A,
+            b: i64
+        }
+
+        fn test() -> i64 {
+            let a = A {};
+            let b = B {};
+
+            a.a = 1;
+            b.b = 2;
+
+            return a.a + b.b;
+        }
+    ",
+    [test as fn() -> i32],
+    [assert test() == 3]
+    )
+}
+
+#[test]
+fn test_custom_types_zero_init() {
+    check_codegen!(
+        "
+        struct A {
+            a: i64
+        }
+
+        struct B {
+            a: A,
+            b: i64
+        }
+
+        fn test() -> i64 {
+            let a = A {};
+            let b = B {};
+
+            return a.a + b.b;
+        }
+    ",
+    [test as fn() -> i32],
+    [assert test() == 0]
+    )
+}
+
+#[test]
 fn test_for_loop_external_var() {
     check_codegen!(
         "

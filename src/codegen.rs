@@ -8,8 +8,7 @@ use std::{
 use llvm_sys::{
     LLVMModule, LLVMOpcode, LLVMValue,
     core::{
-        LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMDisposeMessage,
-        LLVMPrintModuleToFile,
+        LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMDisposeMessage, LLVMPrintModuleToFile,
     },
     target::LLVM_InitializeNativeTarget,
     target_machine::{
