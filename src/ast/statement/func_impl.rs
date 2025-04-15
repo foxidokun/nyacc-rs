@@ -2,7 +2,7 @@ use std::ffi::CString;
 
 use crate::ast::{Statement, TypedArg};
 use crate::codegen::macros::c_str;
-use crate::codegen::{Value, ZERO_NAME};
+use crate::codegen::{TypedValue, ZERO_NAME};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use llvm_sys::core::{
@@ -71,8 +71,8 @@ impl Statement for FuncImpl {
             // -- Remember arg
             cxt.vislayers.add_variable(
                 arg.name.clone(),
-                Value {
-                    llvm_val: alloca,
+                TypedValue {
+                    value: alloca,
                     ty: argtype,
                 },
             );

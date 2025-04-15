@@ -19,9 +19,10 @@ mod definitions;
 #[cfg(test)]
 mod tests;
 
-pub use context::{CodegenContext, JitEngine, Value};
+pub use context::{CodegenContext, JitEngine};
 pub use definitions::Type;
 
+#[derive(Debug, Clone)]
 pub struct TypedValue {
     pub value: *mut LLVMValue,
     pub ty: Rc<Type>,

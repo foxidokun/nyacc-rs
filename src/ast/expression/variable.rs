@@ -33,9 +33,7 @@ impl Expression for Variable {
             anyhow::bail!("Custom types and therefore fields unsupported yet");
         }
 
-        // Hack from prev version
-        // Where we load local var into reg because of usage semantics
-        // We probably have to fix this before custom structs
+        // TODO: Load to register is OK, but we should check that variable type (with fields) is primitive
 
         let var = cxt.vislayers.get_variable(&self.name);
         if var.is_none() {
@@ -44,7 +42,8 @@ impl Expression for Variable {
         let var = var.unwrap();
 
         let value =
-            unsafe { LLVMBuildLoad2(cxt.builder, var.ty.llvm_type(cxt), var.llvm_val, ZERO_NAME) };
+            unsafe { LLVMBuildLoad2(cxt.builder, var.ty.llvm_type(cxt), var.value, ZERO_NAME) };
+        assert!(!value.is_null());
 
         Ok(TypedValue { value, ty: var.ty })
     }

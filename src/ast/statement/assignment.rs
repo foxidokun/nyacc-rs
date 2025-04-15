@@ -26,7 +26,7 @@ impl Statement for Assignment {
         let expr = self.expr.codegen(cxt)?;
         let expr = cast(cxt, &expr.ty, &var.ty, expr.value);
 
-        unsafe { LLVMBuildStore(cxt.builder, expr, var.llvm_val) };
+        unsafe { LLVMBuildStore(cxt.builder, expr, var.value) };
 
         Ok(())
     }
