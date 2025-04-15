@@ -175,7 +175,7 @@ impl Drop for CodegenContext {
 pub struct JitEngine {
     cxt: *mut LLVMContext,
     ee: *mut LLVMOpaqueExecutionEngine,
-    module: *mut LLVMModule,
+    pub module: *mut LLVMModule,
 }
 
 impl JitEngine {
@@ -184,11 +184,6 @@ impl JitEngine {
             LLVMLinkInMCJIT();
             LLVM_InitializeNativeTarget();
             LLVM_InitializeNativeAsmPrinter();
-
-            #[cfg(not(test))]
-            {
-                // TODO: Optimization passes (disabled if in tests)
-            }
 
             // Build an execution engine.
             {
