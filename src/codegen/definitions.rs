@@ -253,8 +253,8 @@ impl ProgramDefinitions {
 
         /* Check main function signature */
         if name == "main" {
-            if *ret != Type::Int(IntType { bitwidth: 32 }) {
-                anyhow::bail!("Incorrect return type for main function, should be i32");
+            if *ret != Type::Void() {
+                anyhow::bail!("Incorrect return type for main function, should be none");
             }
             if !args.is_empty() {
                 anyhow::bail!("Incorrect args for main function, should be none");

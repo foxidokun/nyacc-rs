@@ -63,8 +63,6 @@ pub fn jit_target(prog: &Program) -> anyhow::Result<()> {
     });
 
     let func_ptr = ee.get_func_addr("main")?;
-    // TODO: Validate `main` function type in compile phase
-
     let func_ptr: fn() -> () = unsafe { std::mem::transmute(func_ptr) };
 
     func_ptr();

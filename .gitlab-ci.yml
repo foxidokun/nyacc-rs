@@ -39,6 +39,13 @@ codestyle:
   script:
     - cargo fmt --check
 
+valgrind:
+  stage: test
+  image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image
+  script:
+    - cargo build
+    - valgrind --error-exitcode=1 --leak-check=full --errors-for-leak-kinds=definite,possible ./target/debug/nyacc -i examples/valgrinded.nya jit 
+
 build_release:
   stage: release
   image: registry.git.foxido.dev/foxido/nyacc-rs/ci_image

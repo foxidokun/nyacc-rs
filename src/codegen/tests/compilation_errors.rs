@@ -3,13 +3,13 @@ use super::macros::check_codegen;
 #[test]
 fn main_signature() {
     check_codegen!(
-        "fn main(a: i8) -> i32 {}",
+        "fn main(a: i8) -> void {}",
         CompilationError "Incorrect args for main function, should be none"
     );
 
     check_codegen!(
         "fn main() -> i64 {}",
-        CompilationError "Incorrect return type for main function, should be i32"
+        CompilationError "Incorrect return type for main function, should be none"
     );
 }
 
