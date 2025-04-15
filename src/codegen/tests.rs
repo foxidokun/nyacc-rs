@@ -6,14 +6,33 @@ mod macros {
             use crate::codegen::{CodegenContext, JitEngine};
             use crate::ast::Statement;
 
-            let prog = crate::grammar::ProgramParser::new().parse($code.into()).unwrap();
-            let mut cxt = CodegenContext::prepare(&prog).unwrap();
+            let ee = check_codegen!(InternalCodegen, $code).unwrap();
 
-            prog.codegen(&mut cxt).unwrap();
-            let ee = JitEngine::from_codegen_cxt(cxt);
             // Codegen each rule
             $( check_codegen!(ee $($args)*); )*
         }};
+
+        ($code: expr, CompilationError $err_regex: expr) => {{
+            use crate::codegen::{CodegenContext, JitEngine};
+            use crate::ast::Statement;
+            use regex::Regex;
+
+            let ee = check_codegen!(InternalCodegen, $code);
+            assert!(ee.is_err());
+
+            let err = format!("{:?}", ee.err().unwrap());
+            println!("Error: {}", err);
+            assert!(Regex::new($err_regex).unwrap().is_match(&err));
+        }};
+
+        /* Hacky solution via called lambda */
+        (InternalCodegen, $code: expr) => {(|| -> anyhow::Result<JitEngine> {
+            let prog = crate::grammar::ProgramParser::new().parse($code)?;
+            let mut cxt = CodegenContext::prepare(&prog)?;
+
+            prog.codegen(&mut cxt)?;
+            Ok(JitEngine::from_codegen_cxt(cxt))
+        })()};
         ($ee:ident $name:tt as fn($($args:ty),*) -> $ret:ty) => {
             let func_ptr = $ee.get_func_addr(stringify!($name));
             if let Err(e) = func_ptr {
@@ -37,3 +56,5 @@ mod macros {
 mod simple;
 
 mod hacks;
+
+mod compilation_errors;

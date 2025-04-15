@@ -251,6 +251,16 @@ impl ProgramDefinitions {
             processed_args.push(argtype.unwrap());
         }
 
+        /* Check main function signature */
+        if name == "main" {
+            if *ret != Type::Int(IntType { bitwidth: 32 }) {
+                anyhow::bail!("Incorrect return type for main function, should be i32");
+            }
+            if !args.is_empty() {
+                anyhow::bail!("Incorrect args for main function, should be none");
+            }
+        }
+
         let res = self.functions.get(name);
         if let Some(ex_type) = res {
             let ex_args = &ex_type.0;
