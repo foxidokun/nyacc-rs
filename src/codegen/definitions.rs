@@ -46,7 +46,7 @@ impl CustomType {
     pub fn llvm_type(&self, cxt: &CodegenContext) -> LLVMTypeRef {
         let name = CString::new(self.name.clone()).unwrap();
         let res = unsafe { LLVMGetTypeByName2(cxt.cxt, name.as_ptr()) };
-        assert!(!res.is_null());
+        assert!(!res.is_null(), "type {} is unknown to llvm", self);
         res
     }
 
@@ -201,7 +201,7 @@ type FuncType = (Vec<Rc<Type>>, Rc<Type>);
 
 pub struct ProgramDefinitions {
     /// typename => typedata
-    types: HashMap<String, Rc<Type>>,
+    pub types: HashMap<String, Rc<Type>>,
     /// func_name => func_info
     functions: HashMap<String, Rc<FuncType>>,
 }

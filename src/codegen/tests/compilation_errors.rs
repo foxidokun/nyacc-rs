@@ -42,3 +42,19 @@ fn double_type_def() {
         CompilationError "Redefinition of A type"
     );
 }
+
+#[test]
+fn test_type_order() {
+    check_codegen!("
+        struct B {a: A}
+        struct A {a: i64}
+
+        fn test() -> i32 {
+            let b = B {};
+            b.a.a = 1;
+            return b.a.a;
+        }
+    ",
+    CompilationError "Unknown type A in definition of B"
+    )
+}

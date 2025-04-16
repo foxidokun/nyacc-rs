@@ -1,16 +1,24 @@
 fn print_int(_: i64);
 fn read_int() -> i64;
 
-fn max(a: i32, b: i32) -> i32 {
-    if (a > b) {
-        return a;
+struct WrappedInt {
+    value: i64
+}
+
+fn max_wrapped(a: WrappedInt, b: WrappedInt) -> i32 {
+    if (a.value > b.value) {
+        return a.value;
     } else {
-        return b;
+        return b.value;
     }
 }
 
 fn main() {
-    let a: i64 = read_int();
-    let b = read_int();
-    print_int(max(a, b));
+    let a: WrappedInt = WrappedInt {};
+    let b = WrappedInt {};
+
+    a.value = read_int();
+    b.value = read_int();
+
+    print_int(max_wrapped(a, b));
 }
