@@ -38,7 +38,7 @@ nyacc --input examples/simple.nya ast -o ./out.ast
 nyacc --input examples/simple.nya ir -o ./out.ast #--no-optimize
 ```
 
-jit & ir are target are optimized like `-O2 -march=native`, but can be disabled for ir target
+jit & ir are target are optimized with `-O2 -march=native`, but it can be disabled for ir target
 
 ### Build NyaCC
 **For Linux:** You can download artifacts of `build_release` job on master, it contains static linked nyacc executable
