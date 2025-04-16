@@ -1,5 +1,5 @@
 use crate::ast::Expression;
-use crate::codegen::{TypedValue, ZERO_NAME};
+use crate::codegen::{TypedValue, ZERO_NAME, position_builer_at_begin};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use llvm_sys::core::{
@@ -32,7 +32,7 @@ impl Expression for StructCtor {
         let llvm_ty = ty.llvm_type(cxt);
 
         /* Create alloca in entry block */
-        unsafe { LLVMPositionBuilderAtEnd(cxt.builder, entry_block) };
+        position_builer_at_begin(cxt, entry_block);
         let alloca = unsafe { LLVMBuildAlloca(cxt.builder, llvm_ty, ZERO_NAME) };
         assert!(!alloca.is_null());
         unsafe { LLVMPositionBuilderAtEnd(cxt.builder, current_block) };

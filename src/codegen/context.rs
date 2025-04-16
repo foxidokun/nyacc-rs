@@ -190,6 +190,7 @@ impl CodegenContext {
         Ok(new_llvm_type)
     }
 
+    // TODO: Rewrite it (and llvm_type) so it would use cxt.type_cache as in register_functions
     fn register_types(&mut self) -> anyhow::Result<()> {
         let mut registered = HashMap::new();
 

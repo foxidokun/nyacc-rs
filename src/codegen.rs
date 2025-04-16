@@ -8,8 +8,10 @@ use std::{
 use llvm_sys::{
     LLVMModule, LLVMOpcode, LLVMValue,
     core::{
-        LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMDisposeMessage, LLVMPrintModuleToFile,
+        LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMDisposeMessage,
+        LLVMGetFirstInstruction, LLVMPositionBuilder, LLVMPrintModuleToFile,
     },
+    prelude::LLVMBasicBlockRef,
     target::LLVM_InitializeNativeTarget,
     target_machine::{
         LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault, LLVMCodeModel::LLVMCodeModelDefault,
@@ -226,4 +228,10 @@ pub fn bool_from_value(cxt: &mut CodegenContext, val: &TypedValue) -> TypedValue
         value,
         ty: target_type,
     }
+}
+
+pub fn position_builer_at_begin(cxt: &mut CodegenContext, block: LLVMBasicBlockRef) {
+    let first_instr = unsafe { LLVMGetFirstInstruction(block) };
+    // Note: first_instr can be NULL, but LLVMPositionBuilder can handle it
+    unsafe { LLVMPositionBuilder(cxt.builder, block, first_instr) };
 }
