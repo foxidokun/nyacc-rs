@@ -263,3 +263,105 @@ fn test_unreachable() {
         [assert test() == 0]
     );
 }
+
+#[test]
+fn test_double_assig() {
+    check_codegen!(
+        "
+        fn test(x: i32) -> i32 {
+            let a = x;
+            let b = x;
+            return b;
+        }
+        ",
+        [test as fn(i32) -> i32],
+        [assert test(0) == 0],
+        [assert test(1) == 1],
+        [assert test(2) == 2],
+        [assert test(3) == 3]
+    );
+}
+
+#[test]
+fn test_redefinition() {
+    check_codegen!(
+        "
+        fn test(x: i32) -> i32 {
+            let x = 1;
+            let b = x;
+            return b;
+        }
+        ",
+        [test as fn(i32) -> i32],
+        [assert test(0) == 1],
+        [assert test(1) == 1],
+        [assert test(2) == 1],
+        [assert test(3) == 1]
+    );
+
+    check_codegen!(
+        "
+        fn test(x: i32) -> i32 {
+            let a = x;
+            let a = 1;
+            let b = a;
+            return b;
+        }
+        ",
+        [test as fn(i32) -> i32],
+        [assert test(0) == 1],
+        [assert test(1) == 1],
+        [assert test(2) == 1],
+        [assert test(3) == 1]
+    );
+}
+
+#[test]
+fn test_shadowing() {
+    check_codegen!(
+        "
+        fn test(flag: i32) -> i32 {
+            let x = 1;
+            let res = 0;
+            if (flag != 0) {
+                let x = 2;
+                res = x;
+            } else {
+                res = x;
+            }
+
+            res = res + x;
+
+            return res;
+        }
+        ",
+        [test as fn(i32) -> i32],
+        [assert test(0) == 2],
+        [assert test(1) == 3]
+    );
+}
+
+#[test]
+fn test_self_shadowing() {
+    check_codegen!(
+        "
+        fn test(flag: i32) -> i32 {
+            let x = 1;
+            let res = 0;
+            if (flag) {
+                let x = x;
+                res = x + 1;
+            } else {
+                res = x;
+            }
+
+            res = res + x;
+
+            return res;
+        }
+        ",
+        [test as fn(i32) -> i32],
+        [assert test(0) == 2],
+        [assert test(1) == 3]
+    );
+}

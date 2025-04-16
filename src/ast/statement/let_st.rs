@@ -1,5 +1,5 @@
 use crate::ast::{Expression, Statement};
-use crate::codegen::{TypedValue, ZERO_NAME, cast};
+use crate::codegen::{TypedValue, ZERO_NAME, cast, position_builer_at_begin};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use llvm_sys::core::{
@@ -37,7 +37,7 @@ impl Statement for Let {
         }
 
         // Codegen alloca in entry block
-        unsafe { LLVMPositionBuilderAtEnd(cxt.builder, entry_block) };
+        position_builer_at_begin(cxt, entry_block);
         let alloca = unsafe { LLVMBuildAlloca(cxt.builder, expr.ty.llvm_type(cxt), ZERO_NAME) };
         assert!(!alloca.is_null());
 

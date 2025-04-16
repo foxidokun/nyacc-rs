@@ -103,6 +103,44 @@ fn ffi_cal() {
 Если честно, я горд за тестирование в этом компиляторе
 
 ### Итерация 4: Таблица символов
-To be described later...
+Во время кодгена существует [CodegenContext](https://git.foxido.dev/foxido/nyacc-rs/-/blob/master/src/codegen/context.rs?ref_type=heads#L102), который внутри себя хранит `definitions: ProgramDefinitions`, которые в свою очередь являются ничем иным, как
+```rust
+type FuncType = (Vec<Rc<Type>>, Rc<Type>);
 
-Но она существует, в любой момент можно узнать какого типа переменная, поддерживается shadowing переменных (через стек информации по каждому блоку видимости). Соответственно тип функции так же можно узнать. Для переменных можно так же получить их llvm::Value
+pub struct ProgramDefinitions {
+    /// typename => typedata
+    pub types: HashMap<String, Rc<Type>>,
+    /// func_name => func_info
+    functions: HashMap<String, Rc<FuncType>>,
+}
+```
+
+> Rc<T> является ничем иным как местным shared_ptr<T> (Reference Counter)
+
+Объявленные переменные и функции можно узнать из `cxt.vislayers: VisibilityContext`, являющегося ничем иным как
+```rust
+struct TypedValue {
+    value: *mut LLVMValue,
+    ty: Rc<Type>,
+}
+
+struct VisibilityContext {
+    layers: Vec<HashMap<String, TypedValue>>,
+    cur_func: Option<(*mut LLVMValue, Rc<Type>)>,
+}
+```
+где layers является стеком объявленных переменных, чтобы поддерживать скоупы. 
+
+В свою очередь `Type` есть ни что иное как enum (в растовом понимании, что-то близкое к std::variant):
+```rust
+pub enum Type {
+    Void(),
+    Float(FloatType),
+    Int(IntType),
+    Custom(CustomType),
+}
+```
+Подробнее в [definitions.rs](src/codegen/definitions.rs)
+
+Переобъявление переменной просто перекрывает предыдущее [test_redefinition](src/codegen/tests/simple.rs), использование неопределененной переменной приводит к ошибке компиляции [test_unknown_var](src/codegen/tests/compilation_errors.rs),
+shadowing поддерживается, причем с использованием предыдущей при объявлении следующей [test_shadowing/test_self_shadowing](src/codegen/tests/simple.rs)

@@ -58,3 +58,13 @@ fn test_type_order() {
     CompilationError "Unknown type A in definition of B"
     )
 }
+
+#[test]
+fn test_unknown_var() {
+    check_codegen!(
+        "
+        fn test() -> i32 { return a; }
+        ",
+        CompilationError "Unknown variable a"
+    );
+}
