@@ -1,5 +1,5 @@
 use crate::ast::{Expression, Statement};
-use crate::codegen::{Value, ZERO_NAME, cast};
+use crate::codegen::{TypedValue, ZERO_NAME, cast};
 use crate::visitor::{Acceptor, Visitor};
 use derive_new::new;
 use llvm_sys::core::{
@@ -48,8 +48,8 @@ impl Statement for Let {
         // -- Remember var
         cxt.vislayers.add_variable(
             self.var.clone(),
-            Value {
-                llvm_val: alloca,
+            TypedValue {
+                value: alloca,
                 ty: expr.ty,
             },
         );

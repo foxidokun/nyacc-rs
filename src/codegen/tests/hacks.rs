@@ -27,3 +27,36 @@ fn test_unreach_blocks() {
         [assert max(i32::MIN, i32::MIN) == i32::MIN]
     )
 }
+
+#[test]
+fn test_definitions() {
+    // There was a problem of ordering type registration and function codegen
+
+    check_codegen!("
+        struct WrappedInt {
+            value: i64
+        }
+
+        fn max_wrapped(a: WrappedInt, b: WrappedInt) -> i32 {
+            if (a.value > b.value) {
+                return a.value;
+            } else {
+                return b.value;
+            }
+        }
+
+        fn max(a_in: i32, b_in: i32) -> i32 {
+            let a: WrappedInt = WrappedInt {};
+            let b = WrappedInt {};
+
+            a.value = a_in;
+            b.value = b_in;
+
+            return max_wrapped(a, b);
+        }
+    ",
+    [max as fn(i32, i32) -> i32],
+    [assert max(1, 2) == 2],
+    [assert max(-1, -2) == -1]
+    )
+}

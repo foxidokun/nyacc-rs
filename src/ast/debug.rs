@@ -220,7 +220,6 @@ impl<T: Write> Visitor for ASTPrinter<'_, T> {
     fn visit_structctor(&mut self, node: &super::expression::StructCtor) -> anyhow::Result<()> {
         self.shift()?;
         writeln!(self.writer, "Struct Ctor of type {}", node.name)?;
-        print_body!(self, "Args", node.args);
         Ok(())
     }
 

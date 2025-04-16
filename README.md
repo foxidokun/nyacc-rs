@@ -6,7 +6,7 @@ NyaC compiler rewritten in Rust
 NyaC compiler is simple LLVM based compiler for some C-like language NyaC, which supports
 - functions, if/for/while
 - visibility scopes
-- custom types (currently AST only, can't codegen)
+- custom types (ctors are zero initialized)
 - int, float, void types
 - linking with own standart library
 
@@ -35,8 +35,10 @@ Examples:
 ```bash
 nyacc --input examples/simple.nya jit
 nyacc --input examples/simple.nya ast -o ./out.ast
-nyacc --input examples/simple.nya ir -o ./out.ast
+nyacc --input examples/simple.nya ir -o ./out.ast #--no-optimize
 ```
+
+jit & ir are target are optimized like `-O2 -march=native`, but can be disabled for ir target
 
 ### Build NyaCC
 **For Linux:** You can download artifacts of `build_release` job on master, it contains static linked nyacc executable
@@ -56,13 +58,13 @@ read_int() -> i64
 ### Roadmap
 NyaC:
 - [_] Support comments
-- [_] Custom types codegen
 - [_] ELF target
 - [_] Pointers (AST + codegen)
+- [_] va arg functions
 - [_] Strings as i8* + std functions for them
 
 NyaCC:
 - [_] Embed stdlib definitions into prog
-- [_] Simplify stdlib symbol export via proc_macro
+- [_] Simplify stdlib symbol & types export via proc_macro
 - [_] Refactor
-- And mush more...
+- And much more...

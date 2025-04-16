@@ -6,8 +6,20 @@ use std::{
 };
 
 use llvm_sys::{
-    LLVMOpcode, LLVMValue,
-    core::{LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMPrintModuleToFile},
+    LLVMModule, LLVMOpcode, LLVMValue,
+    core::{
+        LLVMBuildCast, LLVMBuildFPCast, LLVMBuildIntCast, LLVMDisposeMessage, LLVMPrintModuleToFile,
+    },
+    target::LLVM_InitializeNativeTarget,
+    target_machine::{
+        LLVMCodeGenOptLevel::LLVMCodeGenLevelDefault, LLVMCodeModel::LLVMCodeModelDefault,
+        LLVMCreateTargetMachine, LLVMDisposeTargetMachine, LLVMGetDefaultTargetTriple,
+        LLVMGetHostCPUFeatures, LLVMGetHostCPUName, LLVMGetTargetFromTriple,
+        LLVMRelocMode::LLVMRelocStatic,
+    },
+    transforms::pass_builder::{
+        LLVMCreatePassBuilderOptions, LLVMDisposePassBuilderOptions, LLVMRunPasses,
+    },
 };
 use macros::c_str;
 
@@ -19,20 +31,26 @@ mod definitions;
 #[cfg(test)]
 mod tests;
 
-pub use context::{CodegenContext, JitEngine, Value};
+pub use context::{CodegenContext, JitEngine};
 pub use definitions::Type;
 
+#[derive(Debug, Clone)]
 pub struct TypedValue {
     pub value: *mut LLVMValue,
     pub ty: Rc<Type>,
 }
 
-pub fn ir_target(prog: &Program, output: &Path) -> anyhow::Result<()> {
+pub fn ir_target(prog: &Program, output: &Path, no_optimize: bool) -> anyhow::Result<()> {
     let mut cxt = CodegenContext::prepare(prog)?;
     prog.codegen(&mut cxt)?;
 
     let filename_c = CString::new(output.to_str().unwrap()).unwrap();
     let mut errors: *mut c_char = null_mut();
+
+    if !no_optimize {
+        run_optimizer(cxt.module);
+    }
+
     unsafe {
         LLVMPrintModuleToFile(cxt.module, filename_c.as_ptr(), &mut errors as _);
     }
@@ -62,12 +80,74 @@ pub fn jit_target(prog: &Program) -> anyhow::Result<()> {
         let _ = ee.add_func_mapping(name, addr);
     });
 
+    run_optimizer(ee.module);
+
     let func_ptr = ee.get_func_addr("main")?;
     let func_ptr: fn() -> () = unsafe { std::mem::transmute(func_ptr) };
 
     func_ptr();
 
     Ok(())
+}
+
+// TODO: Maybe in general create type Owned with custom drop
+// to avoid calling Dispose* functions by hand
+
+fn run_optimizer(module: *mut LLVMModule) {
+    unsafe { LLVM_InitializeNativeTarget() };
+
+    let triple = unsafe { LLVMGetDefaultTargetTriple() };
+    assert!(!triple.is_null());
+
+    let target = unsafe {
+        let mut err = null_mut();
+        let mut target = std::mem::MaybeUninit::uninit();
+        let res = LLVMGetTargetFromTriple(triple, target.as_mut_ptr(), &mut err);
+        if res != 0 {
+            // In case of error, we must avoid using the uninitialized ExecutionEngineRef.
+            assert!(!err.is_null());
+            panic!(
+                "Failed to create execution engine: {:?}",
+                CStr::from_ptr(err)
+            );
+        }
+
+        target.assume_init()
+    };
+    assert!(!target.is_null());
+
+    let cpu = unsafe { LLVMGetHostCPUName() };
+    assert!(!cpu.is_null());
+
+    let features = unsafe { LLVMGetHostCPUFeatures() };
+    assert!(!features.is_null());
+
+    let machine = unsafe {
+        LLVMCreateTargetMachine(
+            target,
+            triple,
+            cpu,
+            features,
+            LLVMCodeGenLevelDefault, // O2
+            LLVMRelocStatic,
+            LLVMCodeModelDefault,
+        )
+    };
+    assert!(!machine.is_null());
+
+    let options = unsafe { LLVMCreatePassBuilderOptions() };
+    assert!(!options.is_null());
+
+    unsafe { LLVMRunPasses(module, c"default<O2>".as_ptr(), machine, options) };
+
+    /* Cleanup */
+    unsafe {
+        LLVMDisposeTargetMachine(machine);
+        LLVMDisposePassBuilderOptions(options);
+        LLVMDisposeMessage(triple);
+        LLVMDisposeMessage(cpu);
+        LLVMDisposeMessage(features);
+    }
 }
 
 pub const ZERO_NAME: *const i8 = c_str!(c"");

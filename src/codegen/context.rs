@@ -11,7 +11,8 @@ use llvm_sys::{
     core::{
         LLVMAddFunction, LLVMContextCreate, LLVMContextDispose, LLVMCreateBuilderInContext,
         LLVMDisposeBuilder, LLVMDisposeModule, LLVMFunctionType, LLVMGetNamedFunction,
-        LLVMModuleCreateWithNameInContext, LLVMSetLinkage,
+        LLVMModuleCreateWithNameInContext, LLVMSetLinkage, LLVMStructCreateNamed,
+        LLVMStructSetBody,
     },
     execution_engine::{
         LLVMAddGlobalMapping, LLVMCreateExecutionEngineForModule, LLVMDisposeExecutionEngine,
@@ -21,16 +22,13 @@ use llvm_sys::{
     target::{LLVM_InitializeNativeAsmPrinter, LLVM_InitializeNativeTarget},
 };
 
-use super::{Type, definitions::ProgramDefinitions};
-
-#[derive(Debug, Clone)]
-pub struct Value {
-    pub llvm_val: *mut LLVMValue,
-    pub ty: Rc<Type>,
-}
+use super::{
+    Type, TypedValue,
+    definitions::{CustomType, ProgramDefinitions},
+};
 
 pub struct VisibilityContext {
-    layers: Vec<HashMap<String, Value>>,
+    layers: Vec<HashMap<String, TypedValue>>,
     // Currently means function rettype, but possibly can have other meanings like in rust
     cur_func: Option<(*mut LLVMValue, Rc<Type>)>,
 }
@@ -52,11 +50,11 @@ impl VisibilityContext {
         debug_assert!(res.is_some(), "Exited more than entered");
     }
 
-    pub fn add_variable(&mut self, name: String, val: Value) {
+    pub fn add_variable(&mut self, name: String, val: TypedValue) {
         self.layers.last_mut().unwrap().insert(name, val);
     }
 
-    pub fn get_variable(&mut self, name: &str) -> Option<Value> {
+    pub fn get_variable(&mut self, name: &str) -> Option<TypedValue> {
         for layer in self.layers.iter().rev() {
             if let Some(var) = layer.get(name) {
                 return Some(var.clone());
@@ -126,7 +124,6 @@ impl CodegenContext {
         }
         assert!(!context.is_null() && !module.is_null() && !builder.is_null());
 
-        // TODO: Populate types
         let mut cxt = Self {
             cxt: context,
             builder,
@@ -136,16 +133,85 @@ impl CodegenContext {
             type_cache: TypeCache::new(),
         };
 
-        // -- Populate functions
-        for funcname in cxt.definitions.function_names() {
-            let func_type = cxt.definitions.get_func(funcname).unwrap();
+        cxt.register_types()?;
+        cxt.register_functions();
+
+        Ok(cxt)
+    }
+
+    fn register_types_recursive<'a>(
+        &self,
+        ty: &'a CustomType,
+        registered: &mut HashMap<&'a str, LLVMTypeRef>,
+    ) -> anyhow::Result<LLVMTypeRef> {
+        /* Try to retrieve cache */
+        if let Some(prev) = registered.get(ty.name.as_str()) {
+            if prev.is_null() {
+                anyhow::bail!("Recursive types, loop begins at {}", ty.name);
+            } else {
+                return Ok(*prev);
+            }
+        }
+
+        /* insert stub */
+        registered.insert(&ty.name, null_mut());
+
+        let mut llvm_types = vec![null_mut(); ty.fields.len()];
+
+        for (idx, field) in ty.fields.values() {
+            let llvm_ty = if let Type::Custom(ty) = field.as_ref() {
+                self.register_types_recursive(ty, registered)?
+            } else {
+                field.llvm_type(self)
+            };
+            debug_assert!(!llvm_ty.is_null());
+
+            llvm_types[*idx] = llvm_ty;
+        }
+
+        /* Register in llvm
+         * Should be after all checks
+         */
+        let own_name = CString::new(ty.name.clone()).unwrap();
+        let new_llvm_type = unsafe { LLVMStructCreateNamed(self.cxt, own_name.as_ptr()) };
+        assert!(!new_llvm_type.is_null());
+        unsafe {
+            LLVMStructSetBody(
+                new_llvm_type,
+                llvm_types.as_mut_ptr(),
+                llvm_types.len() as u32,
+                0,
+            )
+        };
+
+        /* Update cache */
+        registered.insert(&ty.name, new_llvm_type);
+
+        Ok(new_llvm_type)
+    }
+
+    fn register_types(&mut self) -> anyhow::Result<()> {
+        let mut registered = HashMap::new();
+
+        for ty in self.definitions.types.values() {
+            if let Type::Custom(ty) = ty.as_ref() {
+                self.register_types_recursive(ty, &mut registered)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn register_functions(&mut self) {
+        for funcname in self.definitions.function_names() {
+            let func_type = self.definitions.get_func(funcname).unwrap();
 
             let mut llvm_arg_types: Vec<LLVMTypeRef> =
-                func_type.0.iter().map(|t| t.llvm_type(&cxt)).collect();
+                func_type.0.iter().map(|t| t.llvm_type(self)).collect();
 
             let llvm_func_type = unsafe {
                 LLVMFunctionType(
-                    func_type.1.llvm_type(&cxt),
+                    func_type.1.llvm_type(self),
                     llvm_arg_types.as_mut_ptr(),
                     llvm_arg_types.len() as u32,
                     false as i32,
@@ -155,15 +221,13 @@ impl CodegenContext {
 
             let func_name_c = CString::new(funcname.clone()).unwrap();
 
-            // Maybe save function into cxt here (?)
-            let func = unsafe { LLVMAddFunction(cxt.module, func_name_c.as_ptr(), llvm_func_type) };
+            let func =
+                unsafe { LLVMAddFunction(self.module, func_name_c.as_ptr(), llvm_func_type) };
             assert!(!func.is_null());
             // Set external linkage
             unsafe { LLVMSetLinkage(func, LLVMLinkage::LLVMExternalLinkage) };
-            cxt.type_cache.store_func(funcname.clone(), llvm_func_type);
+            self.type_cache.store_func(funcname.clone(), llvm_func_type);
         }
-
-        Ok(cxt)
     }
 }
 
@@ -180,7 +244,7 @@ impl Drop for CodegenContext {
 pub struct JitEngine {
     cxt: *mut LLVMContext,
     ee: *mut LLVMOpaqueExecutionEngine,
-    module: *mut LLVMModule,
+    pub module: *mut LLVMModule,
 }
 
 impl JitEngine {
@@ -273,7 +337,7 @@ mod test_vis_cxt {
             let res = $vis.get_variable($name);
             assert!(res.is_some());
             let res = res.unwrap();
-            assert_eq!(res.llvm_val as usize, $exp);
+            assert_eq!(res.value as usize, $exp);
         }};
         (Err $name:literal $vis:ident) => {{
             let res = $vis.get_variable($name);
@@ -287,7 +351,7 @@ mod test_vis_cxt {
             // SAFETY: Used only for comparasion and never derefenced
             let pseudoval_ptr: *mut LLVMValue  = unsafe { std::mem::transmute(pseudoval_ptr) };
 
-            $vis.add_variable($name.into(), Value{ llvm_val: pseudoval_ptr, ty: Rc::new(Type::Void()) });
+            $vis.add_variable($name.into(), TypedValue{ value: pseudoval_ptr, ty: Rc::new(Type::Void()) });
         }};
         (ExitLayer $vis:ident) => {{
             $vis.exit_layer();

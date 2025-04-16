@@ -1,9 +1,9 @@
-use std::{collections::HashMap, fmt::Display, rc::Rc};
+use std::{collections::HashMap, ffi::CString, fmt::Display, rc::Rc};
 
 use anyhow::Context;
 use llvm_sys::{
     core::{
-        LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMIntTypeInContext,
+        LLVMDoubleTypeInContext, LLVMFloatTypeInContext, LLVMGetTypeByName2, LLVMIntTypeInContext,
         LLVMVoidTypeInContext,
     },
     prelude::LLVMTypeRef,
@@ -15,9 +15,9 @@ use super::CodegenContext;
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct CustomType {
-    name: String,
+    pub name: String,
     // Field name -> (position, Type)
-    fields: HashMap<String, (usize, Rc<Type>)>,
+    pub fields: HashMap<String, (usize, Rc<Type>)>,
 }
 
 impl CustomType {
@@ -43,14 +43,11 @@ impl CustomType {
         })
     }
 
-    pub fn llvm_type(&self, _cxt: &CodegenContext) -> LLVMTypeRef {
-        panic!("Custom types are currently unsupported");
-
-        /*
+    pub fn llvm_type(&self, cxt: &CodegenContext) -> LLVMTypeRef {
         let name = CString::new(self.name.clone()).unwrap();
-        unsafe { LLVMGetTypeByName2(cxt.cxt, name.as_ptr()) }
-        // TODO: Add assert
-        */
+        let res = unsafe { LLVMGetTypeByName2(cxt.cxt, name.as_ptr()) };
+        assert!(!res.is_null(), "type {} is unknown to llvm", self);
+        res
     }
 
     #[cfg(test)]
@@ -128,6 +125,14 @@ impl Type {
 
         res
     }
+
+    /// This type can perform arithmetic
+    pub fn arithmetic(&self) -> bool {
+        match self {
+            Type::Void() | Type::Custom(_) => false,
+            Type::Float(_) | Type::Int(_) => true,
+        }
+    }
 }
 
 impl Display for Type {
@@ -196,7 +201,7 @@ type FuncType = (Vec<Rc<Type>>, Rc<Type>);
 
 pub struct ProgramDefinitions {
     /// typename => typedata
-    types: HashMap<String, Rc<Type>>,
+    pub types: HashMap<String, Rc<Type>>,
     /// func_name => func_info
     functions: HashMap<String, Rc<FuncType>>,
 }
@@ -237,7 +242,11 @@ impl ProgramDefinitions {
         me
     }
 
-    fn add_func(&mut self, name: &str, args: &Vec<TypedArg>, ret: Rc<Type>) -> anyhow::Result<()> {
+    fn add_func(&mut self, name: &str, args: &Vec<TypedArg>, ret: &str) -> anyhow::Result<()> {
+        let ret = self
+            .get_type(ret)
+            .context(format!("Unknown type {} in func def", ret))?;
+
         let mut processed_args = Vec::with_capacity(args.len());
         for arg in args {
             let argtype = self.get_type(&arg.tp);
@@ -261,21 +270,12 @@ impl ProgramDefinitions {
             }
         }
 
-        let res = self.functions.get(name);
-        if let Some(ex_type) = res {
-            let ex_args = &ex_type.0;
-            let ex_ret = &ex_type.1;
+        let res = self
+            .functions
+            .insert(name.into(), Rc::new((processed_args, ret)));
 
-            if ex_args != &processed_args {
-                anyhow::bail!("Mismatch arg types for fn {}", name);
-            }
-
-            if &ret != ex_ret {
-                anyhow::bail!("Mismatch ret types for fn {}", name);
-            }
-        } else {
-            self.functions
-                .insert(name.into(), Rc::new((processed_args, ret)));
+        if res.is_some() {
+            anyhow::bail!("Redefenition of func {}", name);
         }
 
         Ok(())
@@ -304,21 +304,11 @@ impl Visitor for ProgramDefinitions {
     }
 
     fn visit_funcdef(&mut self, node: &crate::utils::nodes::FuncDef) -> anyhow::Result<()> {
-        let rettype = self.get_type(&node.rettype).context(format!(
-            "Unknown type {} in definition of {}",
-            node.rettype, node.name
-        ))?;
-
-        self.add_func(&node.name, &node.args, rettype)
+        self.add_func(&node.name, &node.args, &node.rettype)
     }
 
     fn visit_funcimpl(&mut self, node: &crate::utils::nodes::FuncImpl) -> anyhow::Result<()> {
-        let rettype = self.get_type(&node.rettype).context(format!(
-            "Unknown type {} in definition of {}",
-            node.rettype, node.name
-        ))?;
-
-        self.add_func(&node.name, &node.args, rettype)
+        self.add_func(&node.name, &node.args, &node.rettype)
     }
 
     fn visit_structdef(&mut self, node: &crate::utils::nodes::StructDef) -> anyhow::Result<()> {

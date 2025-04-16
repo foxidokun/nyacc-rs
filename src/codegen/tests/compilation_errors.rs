@@ -14,23 +14,47 @@ fn main_signature() {
 }
 
 #[test]
-fn different_definitions() {
+fn double_func_def() {
     check_codegen!(
-        "fn foo(a: i8) -> i32;
-         fn foo(a: i32) -> i32;
+        "fn foo(a: i8) -> i32 {}
+         fn foo(a: i8) -> i32 {}
         ",
-        CompilationError "Mismatch arg types for fn foo"
+        CompilationError "Redefenition of func foo"
     );
 }
 
-// TODO: Check for double implementations
-#[ignore]
 #[test]
-fn double_impl() {
+fn double_func_def_diff_arg() {
     check_codegen!(
-        "fn foo(a: i8) -> i32 {}
-         fn foo(a: i32) -> i32 {}
+        "fn foo(a: i32) -> i32 {}
+         fn foo(a: i8) -> i32 {}
         ",
-        CompilationError ""
+        CompilationError "Redefenition of func foo"
     );
+}
+
+#[test]
+fn double_type_def() {
+    check_codegen!(
+        "struct A {}
+         struct A {}
+        ",
+        CompilationError "Redefinition of A type"
+    );
+}
+
+#[test]
+fn test_type_order() {
+    check_codegen!("
+        struct B {a: A}
+        struct A {a: i64}
+
+        fn test() -> i32 {
+            let b = B {};
+            b.a.a = 1;
+            return b.a.a;
+        }
+    ",
+    CompilationError "Unknown type A in definition of B"
+    )
 }

@@ -1,0 +1,20 @@
+fn print_int(_: i64);
+
+struct A {
+    a: i64
+}
+
+struct B {
+    a: A,
+    b: i64
+}
+
+fn main() {
+    let a = A {};
+    let b = B {};
+
+    a.a = 1;
+    b.b = 2;
+
+    print_int(a.a + b.b);
+}

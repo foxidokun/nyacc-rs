@@ -11,7 +11,8 @@ pub struct StructDef {
 
 impl Statement for StructDef {
     fn codegen(&self, _: &mut crate::codegen::CodegenContext) -> anyhow::Result<()> {
-        todo!();
+        /* Everything done at context creation stage */
+        Ok(())
     }
 }
 

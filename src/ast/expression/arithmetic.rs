@@ -19,6 +19,10 @@ impl Expression for Arithmetic {
         let lhs_tv = self.lhs.codegen(cxt)?;
         let rhs_tv = self.rhs.codegen(cxt)?;
 
+        if !lhs_tv.ty.arithmetic() || !rhs_tv.ty.arithmetic() {
+            anyhow::bail!("Arithmetic on incomptable types");
+        }
+
         let common_type = Type::common_type(&lhs_tv.ty, &rhs_tv.ty)?;
 
         let lhs = cast(cxt, &lhs_tv.ty, &common_type, lhs_tv.value);
