@@ -54,7 +54,7 @@ pub(super) fn codegen_loop(cxt: &mut CodegenContext, loopst: &Loop) -> anyhow::R
     }
 
     let check_expr = loopst.check.codegen(cxt)?;
-    let check_expr = bool_from_value(cxt, &check_expr);
+    let check_expr = bool_from_value(cxt, &check_expr)?;
 
     unsafe {
         LLVMBuildCondBr(cxt.builder, check_expr.value, loop_block, cont_block);

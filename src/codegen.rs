@@ -169,10 +169,10 @@ pub fn cast(
     from: &Type,
     to: &Type,
     val: *mut LLVMValue,
-) -> *mut LLVMValue {
+) -> anyhow::Result<*mut LLVMValue> {
     // Quickpath
     if from == to {
-        return val;
+        return Ok(val);
     }
 
     let res = match to {
@@ -189,7 +189,7 @@ pub fn cast(
                     ZERO_NAME,
                 )
             },
-            _ => panic!("Cast from incompatable type"),
+            _ => anyhow::bail!("Cast from incompatable type"),
         },
         Type::Int(to_int) => match from {
             Type::Float(_) => unsafe {
@@ -204,13 +204,13 @@ pub fn cast(
             Type::Int(_) => unsafe {
                 LLVMBuildIntCast(cxt.builder, val, to_int.llvm_type(cxt), ZERO_NAME)
             },
-            _ => panic!("Cast from incompatable type"),
+            _ => anyhow::bail!("Cast from incompatable type"),
         },
-        _ => panic!("Cast to incompatable type"),
+        _ => anyhow::bail!("Cast to incompatable type"),
     };
 
     assert!(!res.is_null());
-    res
+    Ok(res)
 }
 
 pub fn bool_from_llvm(cxt: &mut CodegenContext, val: *mut LLVMValue) -> TypedValue {
@@ -220,14 +220,14 @@ pub fn bool_from_llvm(cxt: &mut CodegenContext, val: *mut LLVMValue) -> TypedVal
     }
 }
 
-pub fn bool_from_value(cxt: &mut CodegenContext, val: &TypedValue) -> TypedValue {
+pub fn bool_from_value(cxt: &mut CodegenContext, val: &TypedValue) -> anyhow::Result<TypedValue> {
     let target_type = cxt.definitions.get_type("bool").unwrap();
-    let value = cast(cxt, &val.ty, target_type.as_ref(), val.value);
+    let value = cast(cxt, &val.ty, target_type.as_ref(), val.value)?;
 
-    TypedValue {
+    Ok(TypedValue {
         value,
         ty: target_type,
-    }
+    })
 }
 
 pub fn position_builer_at_begin(cxt: &mut CodegenContext, block: LLVMBasicBlockRef) {

@@ -33,7 +33,7 @@ impl Statement for If {
         }
 
         let check_expr = self.check.codegen(cxt)?;
-        let check_expr = bool_from_value(cxt, &check_expr);
+        let check_expr = bool_from_value(cxt, &check_expr)?;
 
         unsafe {
             LLVMBuildCondBr(cxt.builder, check_expr.value, true_block, not_true_block);

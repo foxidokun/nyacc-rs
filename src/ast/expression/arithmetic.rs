@@ -25,8 +25,8 @@ impl Expression for Arithmetic {
 
         let common_type = Type::common_type(&lhs_tv.ty, &rhs_tv.ty)?;
 
-        let lhs = cast(cxt, &lhs_tv.ty, &common_type, lhs_tv.value);
-        let rhs = cast(cxt, &rhs_tv.ty, &common_type, rhs_tv.value);
+        let lhs = cast(cxt, &lhs_tv.ty, &common_type, lhs_tv.value)?;
+        let rhs = cast(cxt, &rhs_tv.ty, &common_type, rhs_tv.value)?;
 
         macro_rules! dispatch_binop {
             ($([$op:tt, $float_func:tt, $int_func:tt ]),+) => {

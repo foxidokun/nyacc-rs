@@ -193,7 +193,7 @@ impl Type {
             }
         }
 
-        unreachable!(" Ifs above should never miss");
+        unreachable!("Ifs above should never miss");
     }
 }
 

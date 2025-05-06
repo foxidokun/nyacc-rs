@@ -16,7 +16,7 @@ impl Statement for Assignment {
         let var = self.var.codegen_gep(cxt)?;
 
         let expr = self.expr.codegen(cxt)?;
-        let expr = cast(cxt, &expr.ty, &var.ty, expr.value);
+        let expr = cast(cxt, &expr.ty, &var.ty, expr.value)?;
 
         unsafe { LLVMBuildStore(cxt.builder, expr, var.value) };
 

@@ -32,7 +32,7 @@ impl Statement for Let {
                 anyhow::bail!("Unknown type {} in let statement", typename);
             }
             let ty = ty.unwrap();
-            expr.value = cast(cxt, &expr.ty, &ty, expr.value);
+            expr.value = cast(cxt, &expr.ty, &ty, expr.value)?;
             expr.ty = ty;
         }
 

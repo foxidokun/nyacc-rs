@@ -32,7 +32,7 @@ impl Expression for FunctionCall {
         let mut computed_arg = Vec::with_capacity(func_type.0.len());
         for (i, arg) in self.args.iter().enumerate() {
             let argval = arg.codegen(cxt)?;
-            let casted = cast(cxt, &argval.ty, &func_type.0[i], argval.value);
+            let casted = cast(cxt, &argval.ty, &func_type.0[i], argval.value)?;
             computed_arg.push(casted);
         }
 

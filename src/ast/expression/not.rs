@@ -15,7 +15,7 @@ impl Expression for Not {
         cxt: &mut crate::codegen::CodegenContext,
     ) -> anyhow::Result<crate::codegen::TypedValue> {
         let expr_tv = self.expr.codegen(cxt)?;
-        let expr = bool_from_value(cxt, &expr_tv);
+        let expr = bool_from_value(cxt, &expr_tv)?;
 
         let cmp_res = unsafe { llvm_sys::core::LLVMBuildNot(cxt.builder, expr.value, ZERO_NAME) };
 

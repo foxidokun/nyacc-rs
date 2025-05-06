@@ -24,7 +24,7 @@ impl Statement for Return {
 
         let rettype = cxt.vislayers.cur_fun().unwrap().1.clone();
         let expr = self.expr.as_ref().unwrap().codegen(cxt)?;
-        let expr = cast(cxt, &expr.ty, &rettype, expr.value);
+        let expr = cast(cxt, &expr.ty, &rettype, expr.value)?;
 
         unsafe { LLVMBuildRet(cxt.builder, expr) };
 
