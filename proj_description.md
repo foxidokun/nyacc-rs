@@ -144,3 +144,188 @@ pub enum Type {
 
 Переобъявление переменной просто перекрывает предыдущее [test_redefinition](src/codegen/tests/simple.rs), использование неопределененной переменной приводит к ошибке компиляции [test_unknown_var](src/codegen/tests/compilation_errors.rs),
 shadowing поддерживается, причем с использованием предыдущей при объявлении следующей [test_shadowing/test_self_shadowing](src/codegen/tests/simple.rs)
+
+### Итерация 5: Проверка типов
+
+В силу "си подобности" методов нет. Проверка типов производится во время кодгена при попытках скастовать. Так, оператор присваивания в случае явного указанного типа попытается скастовать (функция `cast`):
+```rust
+let mut expr = self.expr.codegen(cxt)?;
+if let Some(typename) = &self.tp {
+    let ty = cxt.definitions.get_type(typename);
+    if ty.is_none() {
+        anyhow::bail!("Unknown type {} in let statement", typename);
+    }
+    let ty = ty.unwrap();
+    expr.value = cast(cxt, &expr.ty, &ty, expr.value)?;
+    expr.ty = ty;
+}
+```
+
+Кастовать можно из любого типа в него же самого, либо Float <-> Int -> Bool, все остальные попытки приведут к ошибке компиляции
+
+### Итерация 6: Готовый компилятор
+
+В силу желания вместо бинарника код автоматически jit исполняется. Верхнеуровневый обработчиком jit является фцнкция 
+```rust
+pub fn jit_target(prog: &Program) -> anyhow::Result<()> {
+    let mut cxt = CodegenContext::prepare(prog)?;
+    prog.codegen(&mut cxt)?;
+
+    // [вызов кодгена]
+    let ee = JitEngine::from_codegen_cxt(cxt);
+
+    // [регистрация стандартных функций]
+    nyastd::register_functions(|name: &'static str, addr| {
+        /* Currently here we ignore Err's, cause probably they caused by unimported functions
+         * but as TODO we should add std func definitions into func. But it requires proc_macro magic
+         * for parsing function types
+         */
+        let _ = ee.add_func_mapping(name, addr);
+    });
+
+    // [Запускает оптимизатор]
+    run_optimizer(ee.module);
+
+    // [Вытаскивает указатель на main и запускает ее]
+    let func_ptr = ee.get_func_addr("main")?;
+    let func_ptr: fn() -> () = unsafe { std::mem::transmute(func_ptr) };
+
+    func_ptr();
+
+    Ok(())
+}
+```
+которая вызывает кодген, строит jit execute'ор, оптимизирует код и запускает его. 
+
+Построение jit:
+```rust
+pub fn from_codegen_cxt(mut cxt: CodegenContext) -> Self {
+        let ee = unsafe {
+            LLVMLinkInMCJIT();
+            LLVM_InitializeNativeTarget();
+            LLVM_InitializeNativeAsmPrinter();
+
+            // Build an execution engine.
+            {
+                let mut ee = std::mem::MaybeUninit::uninit();
+                let mut err = std::mem::zeroed();
+
+                // This moves ownership of the module into the execution engine.
+                if LLVMCreateExecutionEngineForModule(ee.as_mut_ptr(), cxt.module, &mut err) != 0 {
+                    // In case of error, we must avoid using the uninitialized ExecutionEngineRef.
+                    assert!(!err.is_null());
+                    panic!(
+                        "Failed to create execution engine: {:?}",
+                        CStr::from_ptr(err)
+                    );
+                }
+
+                ee.assume_init()
+            }
+        };
+        /* ... snip ... */
+    }
+```
+
+Оптимизатор с target triple:
+```rust
+fn run_optimizer(module: *mut LLVMModule) {
+    unsafe { LLVM_InitializeNativeTarget() };
+
+    let triple = unsafe { LLVMGetDefaultTargetTriple() };
+    assert!(!triple.is_null());
+
+    let target = unsafe {
+        let mut err = null_mut();
+        let mut target = std::mem::MaybeUninit::uninit();
+        let res = LLVMGetTargetFromTriple(triple, target.as_mut_ptr(), &mut err);
+        if res != 0 {
+            // In case of error, we must avoid using the uninitialized ExecutionEngineRef.
+            assert!(!err.is_null());
+            panic!(
+                "Failed to create execution engine: {:?}",
+                CStr::from_ptr(err)
+            );
+        }
+
+        target.assume_init()
+    };
+    assert!(!target.is_null());
+
+    let cpu = unsafe { LLVMGetHostCPUName() };
+    assert!(!cpu.is_null());
+
+    let features = unsafe { LLVMGetHostCPUFeatures() };
+    assert!(!features.is_null());
+
+    let machine = unsafe {
+        LLVMCreateTargetMachine(
+            target,
+            triple,
+            cpu,
+            features,
+            LLVMCodeGenLevelDefault, // O2
+            LLVMRelocStatic,
+            LLVMCodeModelDefault,
+        )
+    };
+    assert!(!machine.is_null());
+
+    let options = unsafe { LLVMCreatePassBuilderOptions() };
+    assert!(!options.is_null());
+
+    unsafe { LLVMRunPasses(module, c"default<O2>".as_ptr(), machine, options) };
+
+    /* Cleanup */
+    unsafe {
+        LLVMDisposeTargetMachine(machine);
+        LLVMDisposePassBuilderOptions(options);
+        LLVMDisposeMessage(triple);
+        LLVMDisposeMessage(cpu);
+        LLVMDisposeMessage(features);
+    }
+}
+```
+
+Регистрация стандартных функций через callback + LLVMAddGlobalMapping, чтобы можно было вызывать rust функции из jit кода
+
+```rust
+// nyastd/src/lib.rs
+pub fn register_functions<T>(mut callback: T)
+where T: FnMut(&'static str, *mut ())
+{
+    macro_rules! export_symbol {
+        ($symbol:ident) => {
+            callback(stringify!($symbol), $symbol as *mut ());
+        };
+    }
+
+    export_symbol!(print_int);
+    export_symbol!(read_int);
+}
+
+
+// src/codegen.rs
+pub fn jit_target(prog: &Program) -> anyhow::Result<()> {
+    /* ... */
+    nyastd::register_functions(|name: &'static str, addr| {
+        let _ = ee.add_func_mapping(name, addr);
+    });
+    /* ... */
+}
+
+// src/codegen/context.rs
+pub fn add_func_mapping(&self, name: &str, obj: *mut ()) -> anyhow::Result<()> {
+        let func_name = CString::new(name).unwrap();
+        let func = unsafe { LLVMGetNamedFunction(self.module, func_name.as_ptr() as *const _) };
+        if func.is_null() {
+            anyhow::bail!("Function {} wasn;t imported", name);
+        }
+
+        unsafe {
+            LLVMAddGlobalMapping(self.ee, func, obj as *mut c_void);
+        }
+
+        Ok(())
+    }
+```
